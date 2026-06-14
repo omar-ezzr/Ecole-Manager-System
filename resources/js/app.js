@@ -1,0 +1,1 @@
+import _ from 'chart.js';

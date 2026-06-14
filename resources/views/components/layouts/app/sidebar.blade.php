@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+    <head>               <link rel="icon" href="{!! asset('favicon.ico') !!}"/>
+
+        @include('partials.head')
+    </head>
+    <body class="min-h-screen bg-slate-50 text-slate-950 dark:bg-zinc-950 dark:text-zinc-50">
+        <flux:sidebar sticky stashable class="border-r border-teal-900/10 bg-white/95 shadow-sm dark:border-white/10 dark:bg-zinc-900">
+            <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
+
+            <a href="{{ route('dashboard') }}" class="mr-5 flex items-center space-x-2 rounded-xl px-1 py-2" wire:navigate>
+                <x-app-logo />
+            </a>
+
+            <flux:navlist variant="outline">
+                <flux:navlist.group heading="Workspace" class="grid">
+                    <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate > {{ __('Dashboard') }} </flux:navlist.item>
+                    
+                </flux:navlist.group> <flux:navlist.item icon="user" href="{{ route('students.index') }}" :current="request()->routeIs('students.*')" wire:navigate>{{ __('Student records') }}</flux:navlist.item>
+                @if(Auth::user()->email== env('EMAIL_AUTH'))
+                <flux:navlist.group expandable heading="Students" class="hidden lg:grid">
+                  <flux:navlist.item href="{{route('students.create')}}">Create manually</flux:navlist.item>
+              </flux:navlist.group>
+              @endif
+                @if(Auth::user()->email== env('EMAIL_AUTH'))
+
+              <flux:navlist.item icon="building-office"  href="{{ route('classrooms.index') }}" :current="request()->routeIs('classrooms.*')" wire:navigate>{{ __('Classrooms') }}</flux:navlist.item>
+
+                <flux:navlist.group expandable   heading="Classes" class="hidden lg:grid">
+                  <flux:navlist.item href="{{route('classrooms.create')}}">Create manually</flux:navlist.item>
+              </flux:navlist.group>
+
+              <flux:navlist.item icon="squares-2x2"  href="{{ route('departments.index') }}" :current="request()->routeIs('departments.*')" wire:navigate>{{ __('Departments') }}</flux:navlist.item>
+
+                <flux:navlist.group expandable  heading="Departments" class="hidden lg:grid">
+                  <flux:navlist.item href="{{route('departments.create')}}">Create manually</flux:navlist.item>
+              </flux:navlist.group>
+              <flux:navlist.item icon="academic-cap"  href="{{ route('schools.index') }}" :current="request()->routeIs('schools.*')" wire:navigate>{{ __('Schools') }}</flux:navlist.item>
+
+                <flux:navlist.group expandable  heading="Schools" class="hidden lg:grid">
+                  <flux:navlist.item href="{{route('schools.create')}}">Create manually</flux:navlist.item>
+              </flux:navlist.group>
+                            @endif
+
+
+
+
+            <flux:navlist.item icon="chart-bar-square" href="{{url('absences')}}">Absences</flux:navlist.item>
+            <flux:navlist.item icon="heart" href="{{route('health-records.index')}}">Health records</flux:navlist.item>
+            
+                @if(Auth::user()->email== env('EMAIL_AUTH'))
+               <flux:navlist.group expandable  heading="Health records" class="hidden lg:grid">
+                  <flux:navlist.item href="{{route('health-records.create')}}">Create record</flux:navlist.item>
+              </flux:navlist.group>
+                            @endif
+
+               
+            </flux:navlist>
+
+            <flux:spacer />
+
+            <div class="mb-3 hidden overflow-hidden rounded-xl border border-teal-900/10 bg-teal-50 lg:block dark:border-white/10 dark:bg-zinc-800">
+                <img src="{{ asset('images/school-campus.svg') }}" alt="School campus" class="h-24 w-full object-cover">
+                <div class="p-3">
+                    <p class="text-xs font-medium text-teal-900 dark:text-teal-100">Real-time academic records</p>
+                    <p class="mt-1 text-xs text-teal-800/70 dark:text-zinc-300">Students, grades, absences, and health data in one workspace.</p>
+                </div>
+            </div>
+
+        
+            <flux:dropdown position="bottom" align="start">
+                <flux:profile
+                    :name="auth()->user()->name"
+                    :initials="auth()->user()->initials()"
+                    icon-trailing="chevrons-up-down"
+                    
+                />
+
+                <flux:menu class="w-[220px]">
+                    <flux:menu.radio.group>
+                        <div class="p-0 text-sm font-normal">
+                            <div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                                <span class="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-lg">
+                                    <span 
+                                        class="flex h-full w-full items-center justify-center rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white"
+                                    >
+                                        {{ auth()->user()->initials() }}
+                                    </span>
+                                </span>
+
+                                <div class="grid flex-1 text-left text-sm leading-tight">
+                                    <span class="truncate font-semibold">{{ auth()->user()->name }}</span>
+                                    <span class="truncate text-xs">{{ auth()->user()->email }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </flux:menu.radio.group>
+
+                    <flux:menu.separator />
+
+                    <flux:menu.radio.group>
+                        <flux:menu.item href="/settings/profile" icon="cog" wire:navigate>{{ __('Settings') }}</flux:menu.item>
+                    </flux:menu.radio.group>
+
+                    <flux:menu.separator />
+
+                    <form method="POST" action="{{ route('logout') }}" class="w-full">
+                        @csrf
+                        <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle" class="w-full">
+                            {{ __('Log Out') }}
+                        </flux:menu.item>
+                    </form>
+                </flux:menu>
+            </flux:dropdown>
+        </flux:sidebar>
+
+        <!-- Mobile User Menu -->
+        <flux:header class="lg:hidden">
+            <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+
+            <flux:spacer />
+
+            <flux:dropdown position="top" align="end">
+                <flux:profile
+                    :initials="auth()->user()->initials()"
+                    icon-trailing="chevron-down"
+                />
+
+                <flux:menu>
+                    <flux:menu.radio.group>
+                        <div class="p-0 text-sm font-normal">
+                            <div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                                <span class="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-lg">
+                                    <span
+                                        class="flex h-full w-full items-center justify-center rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white"
+                                    >
+                                        {{ auth()->user()->initials() }}
+                                    </span>
+                                </span>
+
+                                <div class="grid flex-1 text-left text-sm leading-tight">
+                                    <span class="truncate font-semibold">{{ auth()->user()->name }}</span>
+                                    <span class="truncate text-xs">{{ auth()->user()->email }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </flux:menu.radio.group>
+
+                    <flux:menu.separator />
+
+                    <flux:menu.radio.group>
+                        <flux:menu.item href="/settings/profile" icon="cog" wire:navigate>Settings</flux:menu.item>
+                    </flux:menu.radio.group>
+
+                    <flux:menu.separator />
+
+                    <form method="POST" action="{{ route('logout') }}" class="w-full">
+                        @csrf
+                        <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle" class="w-full">
+                            {{ __('Log Out') }}
+                        </flux:menu.item>
+                    </form>
+                </flux:menu>
+            </flux:dropdown>
+        </flux:header>
+
+        {{ $slot }}
+
+        @fluxScripts
+    </body>
+</html>

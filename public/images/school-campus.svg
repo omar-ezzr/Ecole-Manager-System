@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">School campus</title>
+  <desc id="desc">A school campus scene with buildings, path, trees, and open courtyard.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#bae6fd"/>
+      <stop offset="1" stop-color="#ecfeff"/>
+    </linearGradient>
+    <linearGradient id="path" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="1" stop-color="#fde68a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky)"/>
+  <path d="M0 570c170-50 300-46 460-8 170 40 340 30 510-15 80-22 155-32 230-25v278H0z" fill="#14b8a6"/>
+  <path d="M490 560h220l145 240H345z" fill="url(#path)"/>
+  <g>
+    <path d="M120 360h300v220H120z" fill="#f8fafc"/>
+    <path d="M90 330h360v55H90z" fill="#0f172a"/>
+    <path d="M160 280h220l70 65H90z" fill="#334155"/>
+    <g fill="#38bdf8">
+      <rect x="165" y="420" width="60" height="55" rx="6"/>
+      <rect x="255" y="420" width="60" height="55" rx="6"/>
+      <rect x="345" y="420" width="45" height="55" rx="6"/>
+    </g>
+  </g>
+  <g>
+    <path d="M760 300h320v280H760z" fill="#e2e8f0"/>
+    <path d="M725 270h390v60H725z" fill="#0f766e"/>
+    <path d="M820 220h200l95 70H725z" fill="#134e4a"/>
+    <g fill="#7dd3fc">
+      <rect x="810" y="375" width="64" height="55" rx="6"/>
+      <rect x="918" y="375" width="64" height="55" rx="6"/>
+      <rect x="810" y="470" width="64" height="55" rx="6"/>
+      <rect x="918" y="470" width="64" height="55" rx="6"/>
+    </g>
+  </g>
+  <g>
+    <rect x="550" y="395" width="100" height="185" fill="#f8fafc"/>
+    <path d="M525 370h150v45H525z" fill="#0f172a"/>
+    <path d="M575 475h50v105h-50z" fill="#134e4a"/>
+  </g>
+  <g>
+    <rect x="50" y="500" width="34" height="120" fill="#78350f"/>
+    <circle cx="67" cy="470" r="72" fill="#15803d"/>
+    <rect x="1130" y="490" width="34" height="125" fill="#78350f"/>
+    <circle cx="1147" cy="460" r="78" fill="#15803d"/>
+  </g>
+</svg>
