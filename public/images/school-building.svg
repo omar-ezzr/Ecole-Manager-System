@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title desc">
+  <title id="title">School building</title>
+  <desc id="desc">A clean illustration of a school building with trees and a bright sky.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#dbeafe"/>
+      <stop offset="1" stop-color="#ccfbf1"/>
+    </linearGradient>
+    <linearGradient id="front" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#e2e8f0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky)"/>
+  <circle cx="1000" cy="130" r="70" fill="#facc15"/>
+  <path d="M0 650h1200v150H0z" fill="#0f766e"/>
+  <path d="M190 360h820v300H190z" fill="url(#front)"/>
+  <path d="M150 330h900v70H150z" fill="#334155"/>
+  <path d="M260 260h680l110 90H150z" fill="#0f172a"/>
+  <path d="M520 450h160v210H520z" fill="#0f766e"/>
+  <path d="M552 486h96v174h-96z" fill="#134e4a"/>
+  <g fill="#38bdf8" stroke="#0f172a" stroke-width="8">
+    <rect x="260" y="440" width="100" height="80" rx="8"/>
+    <rect x="420" y="440" width="100" height="80" rx="8"/>
+    <rect x="680" y="440" width="100" height="80" rx="8"/>
+    <rect x="840" y="440" width="100" height="80" rx="8"/>
+  </g>
+  <path d="M120 655h960" stroke="#f8fafc" stroke-width="18" stroke-linecap="round"/>
+  <g>
+    <rect x="80" y="530" width="40" height="130" fill="#78350f"/>
+    <circle cx="100" cy="500" r="85" fill="#16a34a"/>
+    <rect x="1080" y="530" width="40" height="130" fill="#78350f"/>
+    <circle cx="1100" cy="500" r="85" fill="#16a34a"/>
+  </g>
+</svg>

@@ -1,0 +1,26 @@
+[90m= [39m[34;4mApp\Models\User[39;24m {#6662
+    [34mid[39m: [35m1[39m,
+    [34mstudent_id[39m: [36mnull[39m,
+    [34mname[39m: "[32mOperational Administrator[39m",
+    [34memail[39m: "[32madmin@gmail.com[39m",
+    [34memail_verified_at[39m: "[32m2026-07-10 20:12:05[39m",
+    #[33mpassword[39m: "[32m$2y$12$SzW/xx83gif9jwIoPeQn4uErZst6ioyXaF4RnyMTvfDcMLhjiKeUS[39m",
+    [34muser_type[39m: "[32mDirector[39m",
+    #[33mremember_token[39m: [36mnull[39m,
+    [34mcreated_at[39m: "[32m2026-07-10 20:12:05[39m",
+    [34mupdated_at[39m: "[32m2026-07-12 13:35:04[39m",
+  }
+
+[90m= [39m[34;4mApp\Models\User[39;24m {#6662
+    [34mid[39m: [35m1[39m,
+    [34mstudent_id[39m: [36mnull[39m,
+    [34mname[39m: "[32mOperational Administrator[39m",
+    [34memail[39m: "[32madmin@gmail.com[39m",
+    [34memail_verified_at[39m: "[32m2026-07-10 20:12:05[39m",
+    #[33mpassword[39m: "[32m$2y$12$SzW/xx83gif9jwIoPeQn4uErZst6ioyXaF4RnyMTvfDcMLhjiKeUS[39m",
+    [34muser_type[39m: "[32mDirector[39m",
+    #[33mremember_token[39m: [36mnull[39m,
+    [34mcreated_at[39m: "[32m2026-07-10 20:12:05[39m",
+    [34mupdated_at[39m: "[32m2026-07-12 13:35:04[39m",
+  }
+
