@@ -54,14 +54,40 @@ class User extends Authenticatable
         ];
     }
 
-    public function student(): BelongsTo { return $this->belongsTo(Student::class); }
+    public function student(): BelongsTo
+    {
+        return $this->belongsTo(Student::class);
+    }
+
     public function assignedClassrooms(): BelongsToMany
-    { return $this->belongsToMany(Classroom::class, 'classroom_professor', 'professor_id', 'classroom_id')->withTimestamps(); }
-    public function isOperationalAdministrator(): bool { return $this->hasRole(Role::ROLE_ADMINISTRATOR); }
-    public function isDirector(): bool { return $this->hasRole(Role::ROLE_DIRECTOR); }
-    public function isSecretary(): bool { return $this->hasRole(Role::ROLE_SECRETARY); }
-    public function isProfessor(): bool { return $this->hasRole(Role::ROLE_PROFESSOR); }
-    public function isStudentUser(): bool { return $this->hasRole(Role::ROLE_STUDENT); }
+    {
+        return $this->belongsToMany(Classroom::class, 'classroom_professor', 'professor_id', 'classroom_id')->withTimestamps();
+    }
+
+    public function isOperationalAdministrator(): bool
+    {
+        return $this->hasRole(Role::ROLE_ADMINISTRATOR);
+    }
+
+    public function isDirector(): bool
+    {
+        return $this->hasRole(Role::ROLE_DIRECTOR);
+    }
+
+    public function isSecretary(): bool
+    {
+        return $this->hasRole(Role::ROLE_SECRETARY);
+    }
+
+    public function isProfessor(): bool
+    {
+        return $this->hasRole(Role::ROLE_PROFESSOR);
+    }
+
+    public function isStudentUser(): bool
+    {
+        return $this->hasRole(Role::ROLE_STUDENT);
+    }
 
     /**
      * Get the user's initials

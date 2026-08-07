@@ -10,6 +10,8 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class ExcelImportReader
 {
+    public const MAX_UPLOAD_KILOBYTES = 10240;
+
     private const ALIASES = [
         'nom' => 'last_name',
         'last_name' => 'last_name',
@@ -18,7 +20,6 @@ class ExcelImportReader
         'matricule' => 'student_number',
         'student_number' => 'student_number',
         'student_id' => 'student_number',
-        'compagnie' => 'classroom_id',
         'classroom_id' => 'classroom_id',
         'classroom' => 'classroom_id',
         'class' => 'classroom_id',
@@ -70,6 +71,11 @@ class ExcelImportReader
     public static function fromUploadedFile(UploadedFile $file): self
     {
         return new self($file);
+    }
+
+    public static function uploadRules(): array
+    {
+        return ['required', 'file', 'mimes:xlsx,xls,csv', 'max:'.self::MAX_UPLOAD_KILOBYTES];
     }
 
     public function rows(): array

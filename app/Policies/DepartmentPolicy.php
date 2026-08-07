@@ -13,4 +13,6 @@ class DepartmentPolicy
     public function create(User $user): bool { return $user->can(P::DEPARTMENTS_MANAGE); }
     public function update(User $user, Department $department): bool { return $user->can(P::DEPARTMENTS_MANAGE); }
     public function delete(User $user, Department $department): bool { return $user->can(P::DEPARTMENTS_MANAGE); }
+    public function restore(User $user, Department $department): bool { return $user->can(P::DEPARTMENTS_MANAGE); }
+    public function forceDelete(User $user, Department $department): bool { return $user->can(P::DEPARTMENTS_MANAGE); }
 }

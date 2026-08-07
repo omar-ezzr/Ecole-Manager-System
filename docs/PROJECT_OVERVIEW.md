@@ -1,29 +1,67 @@
 # Project Overview
 
-`School Management System` is a Laravel 12, Blade, Livewire, Flux, Tailwind, and Vite application for managing a generic school domain.
+Ecole Manager is a Laravel 12 application for school administration. The frontend is server-rendered Blade with Livewire 3, Livewire Flux components, Tailwind CSS, Vite assets, and Chart.js dashboard charts.
 
-## Main Areas
+## Active Domain
 
-- Students
-- Classrooms
-- Departments
-- Schools
-- Health records
-- Semester grades
-- Dashboard charts
-- Excel imports
-- QR code generation
-- Authentication and settings
+```text
+School
+└── Department
+    └── Classroom
+        └── Student
+            ├── StudentGrade
+            └── HealthRecord
+```
 
-## Current Domain Names
+`Absence` is not a separate implemented entity. Absence totals are stored on `students.absences_count`.
 
-- `Student`
-- `Classroom`
-- `Department`
+## Current Models
+
 - `School`
+- `Department`
+- `Classroom`
+- `Student`
+- `StudentGrade`
 - `HealthRecord`
 - `Semester`
 - `Subject`
-- `StudentGrade`
+- `User`
+- `Role`
 
-The app no longer exposes the previous training-domain resource routes in the active web route file.
+## Current Roles
+
+- `Operational Administrator`
+- `Director`
+- `Professor`
+- `Service Secretariat`
+- `Student`
+
+Authorization is enforced with Spatie permissions, route middleware, model policies, controller `$this->authorize(...)` calls, and Blade permission checks.
+
+`Service Secretariat` can view schools, departments, and classrooms but cannot manage hierarchy records. Existing `Service Secrétaire` role assignments are migrated to `Service Secretariat`.
+
+Grade creation is authorized against the target student, so assigned professors can create grades only for students in their assigned classrooms.
+
+Excel templates are tracked in `resources/templates`, uploads are limited to 10 MB, student imports use numeric `classroom_id` values only, and empty/header-only workbooks are rejected.
+
+Referenced schools, departments, and classrooms produce conflict or validation responses when an authorized user tries to delete them; this is separate from authorization denial.
+
+## Current Main Routes
+
+- `/dashboard`
+- `/students`
+- `/classrooms`
+- `/departments`
+- `/schools`
+- `/health-records`
+- `/administration/users`
+- `/students/search`
+- `/import-excel`
+- `/import-health-records`
+- `/import-semester-1`
+- `/import-semester-2`
+- `/import-semester-3`
+- `/import-semester-4`
+- `/import-semesters-5-6`
+
+The legacy training-domain resources are removed from the active app. Historical mentions are retained only in the defensive removal migration and removal regression tests.

@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Classroom;
 use App\Models\Department;
 use App\Support\SchoolPermissions as P;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class ClassroomController extends Controller
 {
@@ -14,7 +16,7 @@ class ClassroomController extends Controller
         $this->authorize('viewAny', Classroom::class);
 
         $classrooms = $request->user()->can(P::CLASSROOMS_ALL)
-            ? Classroom::orderBy('name')->get()
+            ? Classroom::with('department')->orderBy('name')->get()
             : $request->user()->assignedClassrooms()->orderBy('name')->get();
 
         return view('classrooms.index', compact('classrooms'));
@@ -47,7 +49,7 @@ class ClassroomController extends Controller
 
     public function show(string $id)
     {
-        $classroom = Classroom::findOrFail($id);
+        $classroom = Classroom::with('department')->findOrFail($id);
         $this->authorize('view', $classroom);
 
         return view('classrooms.show', compact('classroom'));
@@ -88,8 +90,26 @@ class ClassroomController extends Controller
     {
         $classroom = Classroom::findOrFail($id);
         $this->authorize('delete', $classroom);
-        $classroom->delete();
+
+        if ($classroom->students()->exists()) {
+            return $this->referencedParentResponse(request(), 'This classroom cannot be deleted because it still has students.');
+        }
+
+        try {
+            $classroom->delete();
+        } catch (QueryException) {
+            return $this->referencedParentResponse(request(), 'This classroom cannot be deleted because it is still referenced.');
+        }
 
         return redirect('classrooms');
+    }
+
+    private function referencedParentResponse(Request $request, string $message)
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message], Response::HTTP_CONFLICT);
+        }
+
+        return back()->withErrors(['delete' => $message]);
     }
 }

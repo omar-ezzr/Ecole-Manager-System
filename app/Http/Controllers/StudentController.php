@@ -174,6 +174,8 @@ class StudentController extends Controller
                 continue;
             }
 
+            $this->authorize('createForStudent', [StudentGrade::class, $student]);
+
             StudentGrade::updateOrCreate(
                 [
                     'student_id' => $student->id,

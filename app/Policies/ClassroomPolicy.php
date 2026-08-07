@@ -23,4 +23,6 @@ class ClassroomPolicy
     public function create(User $user): bool { return $user->can(P::CLASSROOMS_MANAGE); }
     public function update(User $user, Classroom $classroom): bool { return $user->can(P::CLASSROOMS_MANAGE); }
     public function delete(User $user, Classroom $classroom): bool { return $user->can(P::CLASSROOMS_MANAGE); }
+    public function restore(User $user, Classroom $classroom): bool { return $user->can(P::CLASSROOMS_MANAGE); }
+    public function forceDelete(User $user, Classroom $classroom): bool { return $user->can(P::CLASSROOMS_MANAGE); }
 }

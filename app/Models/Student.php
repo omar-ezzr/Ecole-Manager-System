@@ -47,15 +47,25 @@ class Student extends Model
         return $this->hasMany(StudentGrade::class);
     }
 
-    public function user(): HasOne { return $this->hasOne(User::class); }
+    public function user(): HasOne
+    {
+        return $this->hasOne(User::class);
+    }
 
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        if ($user->can(P::STUDENTS_ALL)) return $query;
+        if ($user->can(P::STUDENTS_ALL)) {
+            return $query;
+        }
+
         if ($user->can(P::STUDENTS_ASSIGNED)) {
             return $query->whereHas('classroom.professors', fn (Builder $classrooms) => $classrooms->whereKey($user->getKey()));
         }
-        if ($user->can(P::STUDENTS_OWN)) return $query->whereKey($user->student_id ?? 0);
+
+        if ($user->can(P::STUDENTS_OWN)) {
+            return $query->whereKey($user->student_id ?? 0);
+        }
+
         return $query->whereRaw('1 = 0');
     }
 }

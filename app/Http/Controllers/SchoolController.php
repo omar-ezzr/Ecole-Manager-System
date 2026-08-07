@@ -3,22 +3,30 @@
 namespace App\Http\Controllers;
 
 use App\Models\School;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class SchoolController extends Controller
 {
     public function index()
     {
+        $this->authorize('viewAny', School::class);
+
         return view('schools.index', ['schools' => School::all()]);
     }
 
     public function create()
     {
+        $this->authorize('create', School::class);
+
         return view('schools.create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', School::class);
+
         $request->validate([
             'name' => ['required'],
             'country' => ['required'],
@@ -34,16 +42,25 @@ class SchoolController extends Controller
 
     public function show(string $id)
     {
-        return view('schools.show', ['school' => School::findOrFail($id)]);
+        $school = School::findOrFail($id);
+        $this->authorize('view', $school);
+
+        return view('schools.show', ['school' => $school]);
     }
 
     public function edit(string $id)
     {
-        return view('schools.edite', ['school' => School::findOrFail($id)]);
+        $school = School::findOrFail($id);
+        $this->authorize('update', $school);
+
+        return view('schools.edite', ['school' => $school]);
     }
 
     public function update(Request $request, string $id)
     {
+        $school = School::findOrFail($id);
+        $this->authorize('update', $school);
+
         $request->validate([
             'name' => ['required'],
             'country' => ['required'],
@@ -52,16 +69,36 @@ class SchoolController extends Controller
             'address' => ['required'],
         ]);
 
-        School::findOrFail($id)->update($this->validatedPayload($request));
+        $school->update($this->validatedPayload($request));
 
         return redirect()->back()->with('success', 'School updated successfully!');
     }
 
     public function destroy(string $id)
     {
-        School::findOrFail($id)->delete();
+        $school = School::findOrFail($id);
+        $this->authorize('delete', $school);
+
+        if ($school->departments()->exists()) {
+            return $this->referencedParentResponse(request(), 'This school cannot be deleted because it still has departments.');
+        }
+
+        try {
+            $school->delete();
+        } catch (QueryException) {
+            return $this->referencedParentResponse(request(), 'This school cannot be deleted because it is still referenced.');
+        }
 
         return redirect('schools');
+    }
+
+    private function referencedParentResponse(Request $request, string $message)
+    {
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message], Response::HTTP_CONFLICT);
+        }
+
+        return back()->withErrors(['delete' => $message]);
     }
 
     private function validatedPayload(Request $request): array

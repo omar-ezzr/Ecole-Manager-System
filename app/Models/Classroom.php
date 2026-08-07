@@ -20,6 +20,9 @@ class Classroom extends Model
     {
         return $this->hasMany(Student::class);
     }
+
     public function professors(): BelongsToMany
-    { return $this->belongsToMany(User::class, 'classroom_professor', 'classroom_id', 'professor_id')->withTimestamps(); }
+    {
+        return $this->belongsToMany(User::class, 'classroom_professor', 'classroom_id', 'professor_id')->withTimestamps();
+    }
 }

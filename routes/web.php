@@ -103,7 +103,7 @@ Route::middleware(['auth'])->group(function () {
 
 
 $downloadTemplate = function (string $fileName, string $missingMessage) {
-    $filePath = storage_path("app/public/{$fileName}");
+    $filePath = resource_path("templates/{$fileName}");
 
     abort_unless(file_exists($filePath), 404, $missingMessage);
 

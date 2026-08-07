@@ -4,13 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\HealthRecord;
 use App\Models\Student;
+use App\Support\SchoolPermissions as P;
 use Illuminate\Http\Request;
 
 class HealthRecordController extends Controller
 {
     public function index(Request $request)
     {
-        $query = HealthRecord::with('student');
+        $this->authorize('viewAny', HealthRecord::class);
+
+        $query = HealthRecord::with('student')
+            ->whereIn('student_id', Student::visibleTo($request->user())->select('students.id'));
 
         if ($request->filled('student_number')) {
             $query->whereHas('student', fn ($student) => $student->where('student_number', 'like', '%'.$request->student_number.'%'));
@@ -31,11 +35,15 @@ class HealthRecordController extends Controller
 
     public function create()
     {
+        $this->authorize('create', HealthRecord::class);
+
         return view('health-records.create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', HealthRecord::class);
+
         $validated = $this->validatedPayload($request);
         HealthRecord::create($validated);
 
@@ -44,24 +52,34 @@ class HealthRecordController extends Controller
 
     public function show(string $id)
     {
-        return view('health-records.show', ['healthRecord' => HealthRecord::with('student')->findOrFail($id)]);
+        $healthRecord = HealthRecord::with('student')->findOrFail($id);
+        $this->authorize('view', $healthRecord);
+
+        return view('health-records.show', ['healthRecord' => $healthRecord]);
     }
 
     public function edit(string $id)
     {
-        return view('health-records.edite', ['healthRecord' => HealthRecord::with('student')->findOrFail($id)]);
+        $healthRecord = HealthRecord::with('student')->findOrFail($id);
+        $this->authorize('update', $healthRecord);
+
+        return view('health-records.edite', ['healthRecord' => $healthRecord]);
     }
 
     public function update(Request $request, string $id)
     {
-        HealthRecord::findOrFail($id)->update($this->validatedPayload($request));
+        $healthRecord = HealthRecord::findOrFail($id);
+        $this->authorize('update', $healthRecord);
+        $healthRecord->update($this->validatedPayload($request));
 
         return redirect()->route('health-records.index');
     }
 
     public function destroy(string $id)
     {
-        HealthRecord::findOrFail($id)->delete();
+        $healthRecord = HealthRecord::findOrFail($id);
+        $this->authorize('delete', $healthRecord);
+        $healthRecord->delete();
 
         return redirect()->route('health-records.index');
     }
@@ -76,6 +94,10 @@ class HealthRecordController extends Controller
         ]);
 
         $student = Student::where('student_number', $request->input('student_number'))->firstOrFail();
+
+        if (! $request->user()->can(P::STUDENTS_ALL)) {
+            abort_unless(Student::visibleTo($request->user())->whereKey($student->id)->exists(), 403);
+        }
 
         return [
             'student_id' => $student->id,

@@ -1,18 +1,20 @@
 # API / Route Endpoints
 
-This Laravel 12 application uses Blade, Livewire, Flux, Eloquent, and standard Laravel controllers.
+The active application is a Laravel 12 Blade/Livewire web app with a small Sanctum-protected API user endpoint and an API registration endpoint.
 
-## Main Web Routes
+## Web Routes
 
-| Method | Route | Controller | Purpose |
+| Method | Route | Controller | Authorization |
 |---|---|---|---|
-| GET | `/dashboard` | Closure in `routes/web.php` | Main school dashboard |
-| Resource | `/students` | `StudentController` | Manage students |
-| Resource | `/classrooms` | `ClassroomController` | Manage classrooms |
-| Resource | `/departments` | `DepartmentController` | Manage departments |
-| Resource | `/schools` | `SchoolController` | Manage schools |
-| Resource | `/health-records` | `HealthRecordController` | Manage student health records |
-| GET | `/students/search` | `StudentSearchController` | Search students by number or name |
+| GET | `/dashboard` | `DashboardController` | `dashboard.view.global` or `dashboard.view.scoped` |
+| Resource | `/students` | `StudentController` | Student permissions plus `StudentPolicy` |
+| GET | `/students/search` | `StudentSearchController@search` | Student view permissions |
+| Resource | `/classrooms` | `ClassroomController` | Classroom permissions plus `ClassroomPolicy` |
+| Resource | `/departments` | `DepartmentController` | Department permissions plus `DepartmentPolicy` |
+| Resource | `/schools` | `SchoolController` | School permissions plus `SchoolPolicy` |
+| Resource | `/health-records` | `HealthRecordController` | Health-record permissions plus `HealthRecordPolicy` |
+| Resource | `/administration/users` | `UserController` | User permissions plus `UserPolicy` |
+| GET | `/absences` | Closure view | `students.view_all` |
 
 ## Import Routes
 
@@ -20,12 +22,32 @@ This Laravel 12 application uses Blade, Livewire, Flux, Eloquent, and standard L
 |---|---|---|---|
 | POST | `/import-excel` | `ImportController@import` | Import students and semester averages |
 | POST | `/import-health-records` | `InsertModule@healthRecords` | Import health records |
-| POST | `/import-semester-1` | `InsertModule@semester1` | Import Semester 1 grades |
-| POST | `/import-semester-2` | `InsertModule@semester2` | Import Semester 2 grades |
-| POST | `/import-semester-3` | `InsertModule@semester3` | Import Semester 3 grades |
-| POST | `/import-semester-4` | `InsertModule@semester4` | Import Semester 4 grades |
-| POST | `/import-semesters-5-6` | `InsertModule@semesters5And6` | Import Semester 5 and Semester 6 grades |
+| POST | `/import-semester-1` | `InsertModule@semester1` | Import Semester 1 averages |
+| POST | `/import-semester-2` | `InsertModule@semester2` | Import Semester 2 averages |
+| POST | `/import-semester-3` | `InsertModule@semester3` | Import Semester 3 averages |
+| POST | `/import-semester-4` | `InsertModule@semester4` | Import Semester 4 averages |
+| POST | `/import-semesters-5-6` | `InsertModule@semesters5And6` | Import Semester 5 and 6 averages |
 
-## Auth Routes
+All import and template routes require `students.import`.
+Excel uploads are limited to 10 MB. Student imports require numeric `classroom_id` values only and reject empty/header-only workbooks.
 
-Login, registration, password reset, email verification, logout, and settings routes are kept from the existing Laravel/Livewire auth stack.
+## Template Routes
+
+- `/templates/students`
+- `/templates/health-records`
+- `/templates/semester-1`
+- `/templates/semester-2`
+- `/templates/semester-3`
+- `/templates/semester-4`
+- `/templates/semesters-5-6`
+
+Template downloads read the tracked source files from `resources/templates`.
+
+## API Routes
+
+- `GET /api/user`: authenticated Sanctum user.
+- `POST /api/auth/register`: student-role registration through `Auth\RegisterController`.
+
+## Auth And Settings
+
+Login, registration, password reset, email verification, logout, profile, password, appearance, and user-update settings routes are provided by the existing Laravel/Livewire auth stack.

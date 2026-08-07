@@ -13,4 +13,6 @@ class SchoolPolicy
     public function create(User $user): bool { return $user->can(P::SCHOOLS_MANAGE); }
     public function update(User $user, School $school): bool { return $user->can(P::SCHOOLS_MANAGE); }
     public function delete(User $user, School $school): bool { return $user->can(P::SCHOOLS_MANAGE); }
+    public function restore(User $user, School $school): bool { return $user->can(P::SCHOOLS_MANAGE); }
+    public function forceDelete(User $user, School $school): bool { return $user->can(P::SCHOOLS_MANAGE); }
 }

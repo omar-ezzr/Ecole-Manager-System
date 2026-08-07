@@ -16,6 +16,8 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('viewAny', User::class);
+
         $users = User::with(['roles', 'student', 'assignedClassrooms'])
             ->when($request->filled('search'), fn ($query) => $query->where(fn ($q) => $q
                 ->where('name', 'like', '%'.$request->string('search').'%')
@@ -27,11 +29,15 @@ class UserController extends Controller
 
     public function create()
     {
+        $this->authorize('create', User::class);
+
         return view('administration.users.form', $this->formData());
     }
 
     public function store(Request $request)
     {
+        $this->authorize('create', User::class);
+
         $data = $this->validated($request);
         DB::transaction(function () use ($data) {
             $user = User::create([
@@ -50,11 +56,15 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
+        $this->authorize('update', $user);
+
         return view('administration.users.form', array_merge(['user' => $user->load('assignedClassrooms')], $this->formData()));
     }
 
     public function update(Request $request, User $user)
     {
+        $this->authorize('update', $user);
+
         $data = $this->validated($request, $user);
         $oldAdmin = $user->isOperationalAdministrator();
         $newAdmin = $data['role'] === SchoolRole::ROLE_ADMINISTRATOR;
@@ -78,6 +88,8 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        $this->authorize('delete', $user);
+
         abort_if(auth()->id() === $user->id, 422, 'You cannot delete your own account.');
         abort_if($user->isOperationalAdministrator() && User::role(SchoolRole::ROLE_ADMINISTRATOR)->count() <= 1, 422, 'The last Operational Administrator cannot be deleted.');
         $user->delete();

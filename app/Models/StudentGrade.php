@@ -16,6 +16,7 @@ class StudentGrade extends Model
         'student_id',
         'semester_id',
         'subject_id',
+        'semester_average_slot',
         'grade',
         'appreciation',
     ];
