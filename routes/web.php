@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AcademicYearController;
 use App\Http\Controllers\ClassroomController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
@@ -7,13 +8,18 @@ use App\Http\Controllers\HealthRecordController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\InsertModule;
 use App\Http\Controllers\SchoolController;
+use App\Http\Controllers\SemesterController;
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\StudentGradeController;
 use App\Http\Controllers\StudentSearchController;
+use App\Http\Controllers\SubjectController;
+use App\Http\Controllers\TeachingAssignmentController;
 use App\Http\Controllers\UserController;
 use App\Livewire\Settings\Appearance;
 use App\Livewire\Settings\Password;
 use App\Livewire\Settings\Profile;
 use App\Livewire\Settings\UpdateUsers;
+use App\Models\User;
 use App\Support\SchoolPermissions as P;
 use Illuminate\Support\Facades\Route;
 
@@ -64,9 +70,43 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:'.P::HEALTH_MANAGE);
     Route::resource('health-records', HealthRecordController::class)->only(['index', 'show'])
         ->middleware('permission:'.P::HEALTH_VIEW);
+
+    Route::resource('subjects', SubjectController::class)->only(['create', 'store', 'edit', 'update', 'destroy'])
+        ->middleware('permission:'.P::SUBJECTS_MANAGE);
+    Route::resource('subjects', SubjectController::class)->only(['index', 'show'])
+        ->middleware('permission:'.P::SUBJECTS_VIEW);
+
+    Route::resource('academic-years', AcademicYearController::class)->only(['create', 'store', 'edit', 'update', 'destroy'])
+        ->middleware('permission:'.P::ACADEMIC_YEARS_MANAGE);
+    Route::resource('academic-years', AcademicYearController::class)->only(['index', 'show'])
+        ->middleware('permission:'.P::ACADEMIC_YEARS_VIEW);
+    Route::post('academic-years/{academic_year}/activate', [AcademicYearController::class, 'activate'])
+        ->middleware('permission:'.P::ACADEMIC_YEARS_MANAGE)
+        ->name('academic-years.activate');
+
+    Route::resource('semesters', SemesterController::class)->only(['create', 'store', 'edit', 'update', 'destroy'])
+        ->middleware('permission:'.P::SEMESTERS_MANAGE);
+    Route::resource('semesters', SemesterController::class)->only(['index', 'show'])
+        ->middleware('permission:'.P::SEMESTERS_VIEW);
+
+    Route::resource('teaching-assignments', TeachingAssignmentController::class)->only(['create', 'store', 'edit', 'update', 'destroy'])
+        ->middleware('permission:'.P::TEACHING_ASSIGNMENTS_MANAGE);
+    Route::resource('teaching-assignments', TeachingAssignmentController::class)->only(['index', 'show'])
+        ->middleware('permission:'.P::TEACHING_ASSIGNMENTS_VIEW_ALL.'|'.P::TEACHING_ASSIGNMENTS_VIEW_OWN);
+
+    Route::resource('student-grades', StudentGradeController::class)->only(['index'])
+        ->middleware('permission:'.P::GRADES_ALL.'|'.P::GRADES_ASSIGNED.'|'.P::GRADES_OWN);
+    Route::resource('student-grades', StudentGradeController::class)->only(['store'])
+        ->middleware('permission:'.P::GRADES_MANAGE_ALL.'|'.P::GRADES_MANAGE_ASSIGNED);
+    Route::get('students/{student}/results', [StudentGradeController::class, 'results'])
+        ->middleware('permission:'.P::GRADES_ALL.'|'.P::GRADES_ASSIGNED.'|'.P::GRADES_OWN)
+        ->name('student-grades.results');
+    Route::get('students/{student}/report-cards/{semester}', [StudentGradeController::class, 'reportCard'])
+        ->middleware('permission:'.P::GRADES_ALL.'|'.P::GRADES_ASSIGNED.'|'.P::GRADES_OWN)
+        ->name('student-grades.report-card');
 });
 
-//dashboard route
+// dashboard route
 // Global supervisors and scoped roles may open the dashboard; the controller
 // still scopes its data according to the authenticated user's role.
 Route::get('dashboard', DashboardController::class)->middleware([
@@ -76,7 +116,7 @@ Route::get('dashboard', DashboardController::class)->middleware([
 ])->name('dashboard');
 
 // routes/web.php for excel importation
-Route::middleware(['auth', 'verified', 'permission:students.import'])->group(function () {
+Route::middleware(['auth', 'verified', 'permission:'.P::STUDENTS_IMPORT])->group(function () {
     Route::post('/import-excel', [ImportController::class, 'import'])->name('excel.import');
     Route::post('/import-health-records', [InsertModule::class, 'healthRecords'])->name('excel.importHealthRecords');
     Route::post('/import-semester-1', [InsertModule::class, 'semester1'])->name('excel.importSemester1');
@@ -86,21 +126,19 @@ Route::middleware(['auth', 'verified', 'permission:students.import'])->group(fun
     Route::post('/import-semesters-5-6', [InsertModule::class, 'semesters5And6'])->name('excel.importSemesters5And6');
 });
 
-
-Route::get('/absences',function(){
+Route::get('/absences', function () {
     return view('charts.absences');
 })->middleware(['auth', 'verified', 'permission:'.P::STUDENTS_ALL]);
 
 // Mount the Livewire component inside dashboard (Livewire handles it automatically)
 Route::middleware(['auth'])->group(function () {
-    Route::get('settings/profile',Profile::class)->name('settings.profile');
-    Route::get('settings/password',Password::class)->name('settings.password');
-    Route::get('settings/appearance',Appearance::class)->name('settings.appearance');
-    Route::get('settings/update-users',UpdateUsers::class)->middleware('permission:'.P::USERS_VIEW)->name('settings.update-users');
+    Route::get('settings/profile', Profile::class)->name('settings.profile');
+    Route::get('settings/password', Password::class)->name('settings.password');
+    Route::get('settings/appearance', Appearance::class)->name('settings.appearance');
+    Route::get('settings/update-users', UpdateUsers::class)
+        ->middleware(['verified', 'can:viewAny,'.User::class])
+        ->name('settings.update-users');
 });
-
-
-
 
 $downloadTemplate = function (string $fileName, string $missingMessage) {
     $filePath = resource_path("templates/{$fileName}");
@@ -114,45 +152,41 @@ $downloadTemplate = function (string $fileName, string $missingMessage) {
     ]);
 };
 
-Route::middleware(['auth', 'verified', 'permission:students.import'])->group(function () use ($downloadTemplate) {
-Route::get('/templates/students', fn () => $downloadTemplate(
-    'students-template.xlsx',
-    'Students template file not found.'
-))->name('templates.students');
+Route::middleware(['auth', 'verified', 'permission:'.P::STUDENTS_IMPORT])->group(function () use ($downloadTemplate) {
+    Route::get('/templates/students', fn () => $downloadTemplate(
+        'students-template.xlsx',
+        'Students template file not found.'
+    ))->name('templates.students');
 
-Route::get('/templates/health-records', fn () => $downloadTemplate(
-    'health-records-template.xlsx',
-    'Health records template file not found.'
-))->name('templates.health-records');
+    Route::get('/templates/health-records', fn () => $downloadTemplate(
+        'health-records-template.xlsx',
+        'Health records template file not found.'
+    ))->name('templates.health-records');
 
-Route::get('/templates/semester-1', fn () => $downloadTemplate(
-    'semester-1-template.xlsx',
-    'Semester 1 template file not found.'
-))->name('templates.semester-1');
+    Route::get('/templates/semester-1', fn () => $downloadTemplate(
+        'semester-1-template.xlsx',
+        'Semester 1 template file not found.'
+    ))->name('templates.semester-1');
 
-Route::get('/templates/semester-2', fn () => $downloadTemplate(
-    'semester-2-template.xlsx',
-    'Semester 2 template file not found.'
-))->name('templates.semester-2');
+    Route::get('/templates/semester-2', fn () => $downloadTemplate(
+        'semester-2-template.xlsx',
+        'Semester 2 template file not found.'
+    ))->name('templates.semester-2');
 
-Route::get('/templates/semester-3', fn () => $downloadTemplate(
-    'semester-3-template.xlsx',
-    'Semester 3 template file not found.'
-))->name('templates.semester-3');
+    Route::get('/templates/semester-3', fn () => $downloadTemplate(
+        'semester-3-template.xlsx',
+        'Semester 3 template file not found.'
+    ))->name('templates.semester-3');
 
-Route::get('/templates/semester-4', fn () => $downloadTemplate(
-    'semester-4-template.xlsx',
-    'Semester 4 template file not found.'
-))->name('templates.semester-4');
+    Route::get('/templates/semester-4', fn () => $downloadTemplate(
+        'semester-4-template.xlsx',
+        'Semester 4 template file not found.'
+    ))->name('templates.semester-4');
 
-Route::get('/templates/semesters-5-6', fn () => $downloadTemplate(
-    'semesters-5-6-template.xlsx',
-    'Semesters 5 and 6 template file not found.'
-))->name('templates.semesters-5-6');
+    Route::get('/templates/semesters-5-6', fn () => $downloadTemplate(
+        'semesters-5-6-template.xlsx',
+        'Semesters 5 and 6 template file not found.'
+    ))->name('templates.semesters-5-6');
 });
-
-
-
-
 
 require __DIR__.'/auth.php';

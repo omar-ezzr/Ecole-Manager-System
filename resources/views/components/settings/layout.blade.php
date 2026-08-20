@@ -4,7 +4,9 @@
             <flux:navlist.item :href="route('settings.profile')" wire:navigate>{{ __('Profile') }}</flux:navlist.item>
             <flux:navlist.item :href="route('settings.password')" wire:navigate>{{ __('Password') }}</flux:navlist.item>
             <flux:navlist.item :href="route('settings.appearance')" wire:navigate>{{ __('Appearance') }}</flux:navlist.item>
-            <flux:navlist.item :href="route('settings.update-users')" wire:navigate>{{ __('Update acounts') }}</flux:navlist.item>
+            @can('viewAny', \App\Models\User::class)
+                <flux:navlist.item :href="route('settings.update-users')" wire:navigate>{{ __('Update accounts') }}</flux:navlist.item>
+            @endcan
         </flux:navlist>
     </div>
 

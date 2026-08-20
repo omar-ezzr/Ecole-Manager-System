@@ -26,12 +26,16 @@ class HealthRecordAuthorizationTest extends TestCase
         $this->actingAs($director)->delete(route('health-records.destroy', $record))->assertForbidden();
     }
 
-    public function test_service_secretariat_can_manage_health_records(): void
+    public function test_service_secretariat_can_view_but_cannot_manage_health_records(): void
     {
         $secretary = User::factory()->create();
         $secretary->assignRole(Role::ROLE_SECRETARY);
         $student = Student::firstOrFail();
 
+        $record = HealthRecord::firstOrFail();
+
+        $this->actingAs($secretary)->get(route('health-records.index'))->assertOk();
+        $this->actingAs($secretary)->get(route('health-records.show', $record))->assertOk();
         $this->actingAs($secretary)
             ->post(route('health-records.store'), [
                 'student_number' => $student->student_number,
@@ -39,13 +43,12 @@ class HealthRecordAuthorizationTest extends TestCase
                 'type' => 'Fievre',
                 'medical_prescription' => 'Rest and hydration.',
             ])
-            ->assertRedirect();
+            ->assertForbidden();
 
-        $this->assertDatabaseHas('health_records', [
-            'student_id' => $student->id,
-            'date' => '2026-01-10',
-            'type' => 'Fievre',
-        ]);
+        $this->actingAs($secretary)->put(route('health-records.update', $record), [])->assertForbidden();
+        $this->actingAs($secretary)->delete(route('health-records.destroy', $record))->assertForbidden();
+
+        $this->assertDatabaseMissing('health_records', ['student_id' => $student->id, 'date' => '2026-01-10']);
     }
 
     public function test_student_cannot_view_another_students_health_record(): void

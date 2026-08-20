@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Classroom;
 use App\Models\Role as SchoolRole;
 use App\Models\Student;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Models\Role;
@@ -18,7 +17,7 @@ class UserController extends Controller
     {
         $this->authorize('viewAny', User::class);
 
-        $users = User::with(['roles', 'student', 'assignedClassrooms'])
+        $users = User::with(['roles', 'student'])
             ->when($request->filled('search'), fn ($query) => $query->where(fn ($q) => $q
                 ->where('name', 'like', '%'.$request->string('search').'%')
                 ->orWhere('email', 'like', '%'.$request->string('search').'%')))
@@ -45,10 +44,10 @@ class UserController extends Controller
                 'email' => $data['email'],
                 'password' => $data['password'],
                 'user_type' => $data['role'],
+                'is_active' => $data['is_active'] ?? true,
                 'student_id' => $data['student_id'] ?? null,
             ]);
             $user->syncRoles([$data['role']]);
-            $user->assignedClassrooms()->sync($data['classroom_ids'] ?? []);
         });
 
         return to_route('administration.users.index')->with('success', 'User created successfully.');
@@ -58,7 +57,7 @@ class UserController extends Controller
     {
         $this->authorize('update', $user);
 
-        return view('administration.users.form', array_merge(['user' => $user->load('assignedClassrooms')], $this->formData()));
+        return view('administration.users.form', array_merge(['user' => $user], $this->formData($user)));
     }
 
     public function update(Request $request, User $user)
@@ -68,6 +67,15 @@ class UserController extends Controller
         $data = $this->validated($request, $user);
         $oldAdmin = $user->isOperationalAdministrator();
         $newAdmin = $data['role'] === SchoolRole::ROLE_ADMINISTRATOR;
+
+        if ($user->is(auth()->user()) && $oldAdmin && ! $newAdmin) {
+            return back()->withErrors(['role' => 'You cannot remove your own Operational Administrator role.'])->withInput();
+        }
+
+        if ($user->is(auth()->user()) && $oldAdmin && ! ($data['is_active'] ?? $user->is_active)) {
+            return back()->withErrors(['is_active' => 'You cannot deactivate your own account.'])->withInput();
+        }
+
         if ($oldAdmin && ! $newAdmin && User::role(SchoolRole::ROLE_ADMINISTRATOR)->count() <= 1) {
             return back()->withErrors(['role' => 'The last Operational Administrator cannot be demoted.'])->withInput();
         }
@@ -77,10 +85,10 @@ class UserController extends Controller
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'user_type' => $data['role'],
+                'is_active' => $data['is_active'] ?? $user->is_active,
                 'student_id' => $data['student_id'] ?? null,
             ] + (isset($data['password']) ? ['password' => $data['password']] : []));
             $user->syncRoles([$data['role']]);
-            $user->assignedClassrooms()->sync($data['classroom_ids'] ?? []);
         });
 
         return to_route('administration.users.index')->with('success', 'User updated successfully.');
@@ -93,12 +101,25 @@ class UserController extends Controller
         abort_if(auth()->id() === $user->id, 422, 'You cannot delete your own account.');
         abort_if($user->isOperationalAdministrator() && User::role(SchoolRole::ROLE_ADMINISTRATOR)->count() <= 1, 422, 'The last Operational Administrator cannot be deleted.');
         $user->delete();
+
         return back()->with('success', 'User deleted successfully.');
     }
 
-    private function formData(): array
+    private function formData(?User $user = null): array
     {
-        return ['roles' => $this->assignableRoles(), 'students' => Student::orderBy('last_name')->get(), 'classrooms' => Classroom::orderBy('name')->get()];
+        $students = Student::query()
+            ->where(function ($query) use ($user) {
+                $query->whereDoesntHave('user');
+
+                if ($user?->student_id) {
+                    $query->orWhereKey($user->student_id);
+                }
+            })
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get();
+
+        return ['roles' => $this->assignableRoles(), 'students' => $students];
     }
 
     private function validated(Request $request, ?User $user = null): array
@@ -110,20 +131,21 @@ class UserController extends Controller
             'role' => [
                 'required',
                 'string',
+                Rule::in(SchoolRole::supportedNames()),
                 Rule::exists('roles', 'name')->where(fn ($query) => $query->where('guard_name', 'web')),
             ],
-            'student_id' => ['nullable', 'integer', 'exists:students,id'],
-            'classroom_ids' => ['nullable', 'array'],
-            'classroom_ids.*' => ['integer', 'exists:classrooms,id'],
+            'student_id' => [
+                Rule::requiredIf($request->input('role') === SchoolRole::ROLE_STUDENT),
+                'nullable',
+                'integer',
+                Rule::exists('students', 'id'),
+                Rule::unique('users', 'student_id')->ignore($user?->id),
+            ],
+            'is_active' => ['sometimes', 'boolean'],
         ]);
 
-        if ($data['role'] === SchoolRole::ROLE_STUDENT) {
-            $data['classroom_ids'] = [];
-        } elseif ($data['role'] === SchoolRole::ROLE_PROFESSOR) {
+        if ($data['role'] !== SchoolRole::ROLE_STUDENT) {
             $data['student_id'] = null;
-        } else {
-            $data['student_id'] = null;
-            $data['classroom_ids'] = [];
         }
 
         return $data;
@@ -133,6 +155,7 @@ class UserController extends Controller
     {
         return Role::query()
             ->where('guard_name', 'web')
+            ->whereIn('name', SchoolRole::supportedNames())
             ->orderBy('name')
             ->pluck('name')
             ->all();

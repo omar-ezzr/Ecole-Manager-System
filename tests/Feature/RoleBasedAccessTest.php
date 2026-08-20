@@ -7,8 +7,10 @@ use App\Models\Role;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\SchoolPermissions as P;
+use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route as RouteFacade;
+use Spatie\Permission\Models\Role as SpatieRole;
 use Tests\TestCase;
 
 class RoleBasedAccessTest extends TestCase
@@ -20,6 +22,7 @@ class RoleBasedAccessTest extends TestCase
         $admin = User::where('email', 'admin@gmail.com')->firstOrFail();
 
         $this->assertSame(Role::ROLE_ADMINISTRATOR, $admin->name);
+        $this->assertSame(Role::ROLE_ADMINISTRATOR, $admin->user_type);
         $this->assertSame([Role::ROLE_ADMINISTRATOR], $admin->getRoleNames()->all());
         $this->assertTrue($admin->can(P::USERS_VIEW));
     }
@@ -100,7 +103,6 @@ class RoleBasedAccessTest extends TestCase
             'user_type' => Role::ROLE_STUDENT,
         ]);
         $user->assignRole(Role::ROLE_STUDENT);
-        $user->assignedClassrooms()->sync([$classroom->id]);
 
         $this->actingAs($admin)
             ->put(route('administration.users.update', $user), [
@@ -110,7 +112,6 @@ class RoleBasedAccessTest extends TestCase
                 'password_confirmation' => '',
                 'role' => Role::ROLE_DIRECTOR,
                 'student_id' => $studentRecord->id,
-                'classroom_ids' => [$classroom->id],
             ])
             ->assertRedirect(route('administration.users.index'));
 
@@ -119,7 +120,30 @@ class RoleBasedAccessTest extends TestCase
         $this->assertSame([Role::ROLE_DIRECTOR], $user->getRoleNames()->all());
         $this->assertSame(Role::ROLE_DIRECTOR, $user->user_type);
         $this->assertNull($user->student_id);
-        $this->assertTrue($user->assignedClassrooms()->doesntExist());
+    }
+
+    public function test_updating_student_role_to_professor_or_service_secretariat_replaces_the_spatie_role(): void
+    {
+        $admin = User::where('email', 'admin@gmail.com')->firstOrFail();
+
+        foreach ([Role::ROLE_PROFESSOR, Role::ROLE_SECRETARY] as $role) {
+            $user = User::factory()->create(['user_type' => Role::ROLE_STUDENT]);
+            $user->assignRole(Role::ROLE_STUDENT);
+
+            $this->actingAs($admin)
+                ->put(route('administration.users.update', $user), [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $role,
+                ])
+                ->assertRedirect(route('administration.users.index'));
+
+            $user->refresh();
+
+            $this->assertSame($role, $user->user_type);
+            $this->assertSame([$role], $user->getRoleNames()->all());
+            $this->assertFalse($user->hasRole(Role::ROLE_STUDENT));
+        }
     }
 
     public function test_director_sees_only_read_only_sidebar_links(): void
@@ -272,19 +296,22 @@ class RoleBasedAccessTest extends TestCase
             ->assertSessionHas('warning', 'Your account is waiting for student record assignment.');
     }
 
-    public function test_secretary_student_actions_match_seeded_permissions(): void
+    public function test_service_secretariat_student_access_is_read_only(): void
     {
         $secretary = User::factory()->create();
         $secretary->assignRole(Role::ROLE_SECRETARY);
 
-        $this->assertTrue($secretary->can(P::STUDENTS_CREATE));
-        $this->assertTrue($secretary->can(P::STUDENTS_UPDATE));
+        $this->assertTrue($secretary->can(P::STUDENTS_ALL));
+        $this->assertFalse($secretary->can(P::STUDENTS_CREATE));
+        $this->assertFalse($secretary->can(P::STUDENTS_UPDATE));
         $this->assertFalse($secretary->can(P::STUDENTS_DELETE));
+        $this->assertFalse($secretary->can(P::STUDENTS_IMPORT));
+        $this->assertFalse($secretary->can(P::HEALTH_MANAGE));
 
         $this->actingAs($secretary)
             ->get(route('students.index'))
             ->assertOk()
-            ->assertSee('Add student')
+            ->assertDontSee('Add student')
             ->assertDontSee('Delete Student');
     }
 
@@ -293,6 +320,23 @@ class RoleBasedAccessTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)->get(route('students.index'))->assertForbidden();
+    }
+
+    public function test_permission_seeder_is_idempotent_and_removes_stale_secretariat_writes(): void
+    {
+        $secretaryRole = SpatieRole::findByName(Role::ROLE_SECRETARY, 'web');
+        $secretaryRole->givePermissionTo([P::STUDENTS_CREATE, P::HEALTH_MANAGE]);
+
+        $this->seed(PermissionSeeder::class);
+        $this->seed(PermissionSeeder::class);
+
+        $secretary = User::factory()->create();
+        $secretary->assignRole(Role::ROLE_SECRETARY);
+
+        $this->assertTrue($secretary->can(P::STUDENTS_ALL));
+        $this->assertTrue($secretary->can(P::HEALTH_VIEW));
+        $this->assertFalse($secretary->can(P::STUDENTS_CREATE));
+        $this->assertFalse($secretary->can(P::HEALTH_MANAGE));
     }
 
     public function test_student_table_contains_only_rows_as_direct_tbody_children(): void

@@ -21,11 +21,14 @@ class AdminUserSeeder extends Seeder
         $user = User::firstOrNew(['email' => 'admin@gmail.com']);
 
         $user->name = SchoolRole::ROLE_ADMINISTRATOR;
+        $user->user_type = SchoolRole::ROLE_ADMINISTRATOR;
+        $user->is_active = true;
         $user->email_verified_at ??= now();
 
         if (! $user->exists) {
             if (! $password && app()->environment('production')) {
                 $this->command?->warn('ADMIN_PASSWORD is missing; administrator creation was skipped.');
+
                 return;
             }
 

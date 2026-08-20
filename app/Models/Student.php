@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Student extends Model
 {
@@ -45,6 +46,25 @@ class Student extends Model
     public function grades(): HasMany
     {
         return $this->hasMany(StudentGrade::class);
+    }
+
+    public function semesterAverages(): HasMany
+    {
+        return $this->hasMany(StudentGrade::class)
+            ->whereNull('teaching_assignment_id')
+            ->whereNull('subject_id');
+    }
+
+    public function teachingAssignments(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            TeachingAssignment::class,
+            Classroom::class,
+            'id',
+            'classroom_id',
+            'classroom_id',
+            'id'
+        );
     }
 
     public function user(): HasOne

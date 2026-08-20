@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicYear;
 use App\Models\Classroom;
 use App\Models\Role;
+use App\Models\Semester;
 use App\Models\Student;
 use App\Models\StudentGrade;
+use App\Models\Subject;
+use App\Models\TeachingAssignment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -27,25 +31,34 @@ class StudentAuthorizationTest extends TestCase
         $this->actingAs($director)->delete(route('students.destroy', $student))->assertForbidden();
     }
 
-    public function test_professor_can_manage_grades_only_for_assigned_students(): void
+    public function test_professor_can_manage_only_assignment_backed_grades_for_assigned_students(): void
     {
         [$assignedClassroom, $otherClassroom] = Classroom::orderBy('id')->limit(2)->get()->all();
         $professor = User::factory()->create();
         $professor->assignRole(Role::ROLE_PROFESSOR);
-        $professor->assignedClassrooms()->sync([$assignedClassroom->id]);
 
         $assignedStudent = Student::factory()->create(['classroom_id' => $assignedClassroom->id]);
         $otherStudent = Student::factory()->create(['classroom_id' => $otherClassroom->id]);
-        $assignedGrade = StudentGrade::factory()->create(['student_id' => $assignedStudent->id]);
+        $academicYear = AcademicYear::active()->firstOrFail();
+        $semester = Semester::where('academic_year_id', $academicYear->id)->firstOrFail();
+        $assignment = TeachingAssignment::factory()->create([
+            'professor_id' => $professor->id,
+            'classroom_id' => $assignedClassroom->id,
+            'subject_id' => Subject::factory()->create(['code' => 'AUTH-SCOPE'])->id,
+            'academic_year_id' => $academicYear->id,
+        ]);
+        $assignedGrade = StudentGrade::factory()->forAssignment($assignment, $assignedStudent, $semester)->create();
+        $legacyAverage = StudentGrade::factory()->create(['student_id' => $assignedStudent->id]);
         $otherGrade = StudentGrade::factory()->create(['student_id' => $otherStudent->id]);
 
         $this->assertTrue($professor->can('update', $assignedGrade));
+        $this->assertFalse($professor->can('update', $legacyAverage));
         $this->assertFalse($professor->can('update', $otherGrade));
         $this->actingAs($professor)->get(route('students.show', $assignedStudent))->assertOk();
         $this->actingAs($professor)->get(route('students.show', $otherStudent))->assertForbidden();
     }
 
-    public function test_service_secretariat_user_can_manage_permitted_student_records(): void
+    public function test_service_secretariat_student_access_is_read_only(): void
     {
         $secretary = User::factory()->create();
         $secretary->assignRole(Role::ROLE_SECRETARY);
@@ -53,11 +66,11 @@ class StudentAuthorizationTest extends TestCase
 
         $this->actingAs($secretary)
             ->post(route('students.store'), $this->studentPayload(['student_number' => 'SEC-001']))
-            ->assertRedirect(route('students.index'));
+            ->assertForbidden();
 
         $this->actingAs($secretary)
             ->put(route('students.update', $student), $this->studentPayload(['student_number' => $student->student_number]))
-            ->assertRedirect(route('students.index'));
+            ->assertForbidden();
 
         $this->actingAs($secretary)->delete(route('students.destroy', $student))->assertForbidden();
     }

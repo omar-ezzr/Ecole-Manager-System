@@ -15,6 +15,12 @@ class DeleteUserForm extends Component
      */
     public function deleteUser(Logout $logout): void
     {
+        abort_if(
+            Auth::user()->isOperationalAdministrator(),
+            403,
+            'Operational Administrators cannot delete their own accounts.',
+        );
+
         $this->validate([
             'password' => ['required', 'string', 'current_password'],
         ]);

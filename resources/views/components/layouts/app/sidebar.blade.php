@@ -17,7 +17,7 @@
                     <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate > {{ __('Dashboard') }} </flux:navlist.item>
                 </flux:navlist.group>
 
-                @can('users.view')
+                @can('viewAny', \App\Models\User::class)
                     <flux:navlist.item
                         icon="users"
                         href="{{ route('administration.users.index') }}"
@@ -76,6 +76,26 @@
                         <flux:navlist.item href="{{ route('health-records.create') }}">Create record</flux:navlist.item>
                     </flux:navlist.group>
                 @endcan
+
+                @can('subjects.view')
+                    <flux:navlist.item icon="book-open-text" href="{{ route('subjects.index') }}" :current="request()->routeIs('subjects.*')" wire:navigate>{{ __('Subjects') }}</flux:navlist.item>
+                @endcan
+
+                @can('academic_years.view')
+                    <flux:navlist.item icon="calendar-days" href="{{ route('academic-years.index') }}" :current="request()->routeIs('academic-years.*')" wire:navigate>{{ __('Academic Years') }}</flux:navlist.item>
+                @endcan
+
+                @can('semesters.view')
+                    <flux:navlist.item icon="rectangle-group" href="{{ route('semesters.index') }}" :current="request()->routeIs('semesters.*')" wire:navigate>{{ __('Semesters') }}</flux:navlist.item>
+                @endcan
+
+                @canany(['teaching_assignments.view_all', 'teaching_assignments.view_own'])
+                    <flux:navlist.item icon="folder-git-2" href="{{ route('teaching-assignments.index') }}" :current="request()->routeIs('teaching-assignments.*')" wire:navigate>{{ auth()->user()->isProfessor() ? __('My Teaching Assignments') : __('Teaching Assignments') }}</flux:navlist.item>
+                @endcanany
+
+                @canany(['grades.view_all', 'grades.view_assigned', 'grades.view_own'])
+                    <flux:navlist.item icon="book-open-text" href="{{ auth()->user()->isStudentUser() && auth()->user()->student_id ? route('student-grades.results', auth()->user()->student_id) : route('student-grades.index') }}" :current="request()->routeIs('student-grades.*')" wire:navigate>{{ auth()->user()->isStudentUser() ? __('My Results') : __('Grades / Results') }}</flux:navlist.item>
+                @endcanany
             </flux:navlist>
 
             <flux:spacer />

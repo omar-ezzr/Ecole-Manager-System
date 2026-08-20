@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AcademicYear;
 use App\Models\Classroom;
 use App\Models\Semester;
 use App\Models\Student;
@@ -107,7 +108,9 @@ class ImportController extends Controller
 
             $this->authorize('createForStudent', [StudentGrade::class, $student]);
 
-            $semester = Semester::where('position', $position)->first();
+            $semester = Semester::where('academic_year_id', AcademicYear::active()->value('id'))
+                ->where('sequence', $position)
+                ->first();
 
             if (! $semester) {
                 continue;
@@ -116,6 +119,7 @@ class ImportController extends Controller
             StudentGrade::updateOrCreate(
                 [
                     'student_id' => $student->id,
+                    'teaching_assignment_id' => null,
                     'semester_id' => $semester->id,
                     'subject_id' => null,
                 ],

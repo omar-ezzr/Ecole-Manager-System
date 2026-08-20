@@ -25,4 +25,9 @@ class Classroom extends Model
     {
         return $this->belongsToMany(User::class, 'classroom_professor', 'classroom_id', 'professor_id')->withTimestamps();
     }
+
+    public function teachingAssignments(): HasMany
+    {
+        return $this->hasMany(TeachingAssignment::class);
+    }
 }

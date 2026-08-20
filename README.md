@@ -145,6 +145,41 @@ Legacy cleanup:
 - `database/migrations/2026_07_23_000000_remove_compagnie_and_groupement_domain.php` defensively removes the old legacy domain if it exists.
 - `database/migrations/2026_07_23_010000_restrict_school_hierarchy_foreign_keys.php` changes the repository-original cascade behavior to restricted deletes on the school hierarchy.
 
+## user login 
+
+
+Operational Administrator :
+admin@gmail.com
+ecole123
+
+Director:
+director@gmail.com
+ecole123
+
+Service Secretariat :
+secretariat@gmail.com
+ecole123
+
+
+Professor : 
+professor1@gmail.com
+ecole123
+
+
+Professor : 
+professor2@gmail.com
+ecole123
+
+
+Student :
+student1@gmail.com
+ecole123
+
+
+Student : 
+student2@gmail.com
+ecole123
+
 ## Local Setup
 
 1. Install dependencies:

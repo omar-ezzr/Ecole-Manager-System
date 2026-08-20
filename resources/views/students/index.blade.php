@@ -74,7 +74,9 @@
                                 <td class="px-5 py-4">{{ $student['email'] }}</td>
                                 <td class="px-5 py-4">{{ $student['education_level'] }}</td>
                                 @foreach ([1, 2, 3, 4, 5, 6] as $position)
-                                    <td class="px-5 py-4 text-center font-medium text-zinc-950 dark:text-white">{{ optional($student->grades->first(fn ($grade) => $grade->semester?->position === $position))->grade ?? 0 }}</td>
+                                    <td class="px-5 py-4 text-center font-medium text-zinc-950 dark:text-white">
+                                        {{ $canViewSemesterAverages ? (optional($student->semesterAverages->first(fn ($grade) => $grade->semester?->sequence === $position))->grade ?? 0) : '—' }}
+                                    </td>
                                 @endforeach
                                 <td class="px-5 py-4 text-right">
                                     <flux:dropdown>

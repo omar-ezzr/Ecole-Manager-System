@@ -14,7 +14,7 @@
 
     <div class="space-y-6">
         <div class="grid grid-cols-3 gap-4">
-            @php($semesterGrades = $student->grades->mapWithKeys(fn ($grade) => [$grade->semester?->code => $grade->grade]))
+            @php($semesterGrades = $student->semesterAverages->mapWithKeys(fn ($grade) => ['semester_'.$grade->semester?->sequence => $grade->grade]))
             <flux:input label="Last Name" name="last_name" value="{{$student->last_name}}" placeholder="Enter the last name" />
             @error('title')
             <div class="alert alert-danger">{{ $message }}</div>

@@ -26,6 +26,15 @@ final class SchoolPermissions
     public const CLASSROOMS_ASSIGNED = 'classrooms.view_assigned';
     public const CLASSROOMS_MANAGE = 'classrooms.manage';
     public const CLASSROOMS_ASSIGN = 'classrooms.assign_professors';
+    public const SUBJECTS_VIEW = 'subjects.view';
+    public const SUBJECTS_MANAGE = 'subjects.manage';
+    public const ACADEMIC_YEARS_VIEW = 'academic_years.view';
+    public const ACADEMIC_YEARS_MANAGE = 'academic_years.manage';
+    public const SEMESTERS_VIEW = 'semesters.view';
+    public const SEMESTERS_MANAGE = 'semesters.manage';
+    public const TEACHING_ASSIGNMENTS_VIEW_ALL = 'teaching_assignments.view_all';
+    public const TEACHING_ASSIGNMENTS_VIEW_OWN = 'teaching_assignments.view_own';
+    public const TEACHING_ASSIGNMENTS_MANAGE = 'teaching_assignments.manage';
     public const GRADES_ALL = 'grades.view_all';
     public const GRADES_ASSIGNED = 'grades.view_assigned';
     public const GRADES_OWN = 'grades.view_own';

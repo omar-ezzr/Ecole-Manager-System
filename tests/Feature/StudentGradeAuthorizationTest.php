@@ -32,7 +32,7 @@ class StudentGradeAuthorizationTest extends TestCase
         $professor->assignedClassrooms()->sync([$assignedClassroom->id]);
 
         $this->assertTrue($admin->can('createForStudent', [StudentGrade::class, $assignedStudent]));
-        $this->assertTrue($professor->can('createForStudent', [StudentGrade::class, $assignedStudent]));
+        $this->assertFalse($professor->can('createForStudent', [StudentGrade::class, $assignedStudent]));
         $this->assertFalse($professor->can('createForStudent', [StudentGrade::class, $otherStudent]));
         $this->assertFalse($unassignedProfessor->can('createForStudent', [StudentGrade::class, $assignedStudent]));
         $this->assertFalse($director->can('createForStudent', [StudentGrade::class, $assignedStudent]));

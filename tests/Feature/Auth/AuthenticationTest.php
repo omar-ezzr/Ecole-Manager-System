@@ -38,6 +38,19 @@ test('users can not authenticate with invalid password', function () {
     $this->assertGuest();
 });
 
+test('inactive users cannot authenticate', function () {
+    $user = User::factory()->create(['is_active' => false]);
+
+    Livewire::test(Login::class)
+        ->set('email', $user->email)
+        ->set('password', 'password')
+        ->call('login')
+        ->assertHasErrors(['email'])
+        ->assertSee('This account is inactive. Contact an administrator.');
+
+    $this->assertGuest();
+});
+
 test('users can logout', function () {
     $user = User::factory()->create();
 

@@ -38,6 +38,8 @@
             </div>
         </form>
 
-        <livewire:settings.delete-user-form />
+        @unless(auth()->user()->isOperationalAdministrator())
+            <livewire:settings.delete-user-form />
+        @endunless
     </x-settings.layout>
 </section>

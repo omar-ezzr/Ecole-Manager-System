@@ -5,7 +5,7 @@
                 <flux:heading size="xl">User administration</flux:heading>
                 <flux:text class="mt-1">Manage accounts, roles, and access links.</flux:text>
             </div>
-            @can('users.create')
+            @can('create', \App\Models\User::class)
                 <flux:button href="{{ route('administration.users.create') }}" variant="primary" icon="plus">Create user</flux:button>
             @endcan
         </div>
@@ -22,19 +22,29 @@
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm">
                     <thead class="border-b bg-zinc-50 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800">
-                        <tr><th class="px-5 py-3">User</th><th class="px-5 py-3">Role</th><th class="px-5 py-3">Link</th><th class="px-5 py-3 text-right">Actions</th></tr>
+                        <tr><th class="px-5 py-3">User</th><th class="px-5 py-3">Role</th><th class="px-5 py-3">Student</th><th class="px-5 py-3">Status</th><th class="px-5 py-3 text-right">Actions</th></tr>
                     </thead>
                     <tbody class="divide-y dark:divide-zinc-700">
                         @forelse($users as $user)
                             <tr>
                                 <td class="px-5 py-4"><div class="font-medium">{{ $user->name }}</div><div class="text-zinc-500">{{ $user->email }}</div></td>
                                 <td class="px-5 py-4">{{ $user->roles->first()?->name ?? 'No role' }}</td>
-                                <td class="px-5 py-4 text-zinc-500">{{ $user->student?->student_number ?? ($user->assignedClassrooms->pluck('name')->join(', ') ?: '—') }}</td>
+                                <td class="px-5 py-4 text-zinc-500">
+                                    @if($user->student)
+                                        <div>{{ $user->student->student_number }}</div>
+                                        <div>{{ $user->student->last_name }} {{ $user->student->first_name }}</div>
+                                    @else
+                                        &mdash;
+                                    @endif
+                                </td>
+                                <td class="px-5 py-4">
+                                    <flux:badge color="{{ $user->is_active ? 'emerald' : 'zinc' }}">{{ $user->is_active ? 'Active' : 'Inactive' }}</flux:badge>
+                                </td>
                                 <td class="px-5 py-4 text-right">
-                                    @can('users.update')
+                                    @can('update', $user)
                                         <a class="mr-3 text-teal-600" href="{{ route('administration.users.edit', $user) }}">Edit</a>
                                     @endcan
-                                    @can('users.delete')
+                                    @can('delete', $user)
                                         <form class="inline" method="POST" action="{{ route('administration.users.destroy', $user) }}">
                                             @csrf
                                             @method('DELETE')
@@ -44,7 +54,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="px-5 py-10 text-center text-zinc-500">No users found.</td></tr>
+                            <tr><td colspan="5" class="px-5 py-10 text-center text-zinc-500">No users found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

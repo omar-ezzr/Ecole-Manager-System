@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\HealthRecord;
+use App\Models\AcademicYear;
 use App\Models\Semester;
 use App\Models\Student;
 use App\Models\StudentGrade;
@@ -40,10 +40,16 @@ class StudentController extends Controller
             $query->where('classroom_id', 'like', '%'.$request->classroom_id.'%');
         }
 
-        $students = $query->with('grades.semester')->orderBy('student_number')->paginate(30)->withQueryString();
-        $semesterIds = Semester::orderBy('position')->pluck('id', 'position');
+        $canViewSemesterAverages = ! $request->user()->isProfessor()
+            && $request->user()->canAny([P::GRADES_ALL, P::GRADES_OWN]);
+        $students = $query
+            ->when($canViewSemesterAverages, fn ($students) => $students->with('semesterAverages.semester'))
+            ->orderBy('student_number')
+            ->paginate(30)
+            ->withQueryString();
+        $semesterIds = Semester::where('academic_year_id', AcademicYear::active()->value('id'))->orderBy('sequence')->pluck('id', 'sequence');
 
-        return view('students.index', compact('students', 'semesterIds'));
+        return view('students.index', compact('students', 'semesterIds', 'canViewSemesterAverages'));
     }
 
     public function create()
@@ -70,9 +76,14 @@ class StudentController extends Controller
             return $this->redirectWaitingForStudentAssignment();
         }
 
-        $student = Student::with(['grades.semester', 'healthRecords'])->findOrFail($id);
+        $student = Student::findOrFail($id);
         $this->authorize('view', $student);
-        $healthRecords = $student->healthRecords()->orderByDesc('date')->get();
+        $canViewHealthRecords = $request->user()->can(P::HEALTH_VIEW);
+        $canViewSemesterAverages = ! $request->user()->isProfessor()
+            && $request->user()->canAny([P::GRADES_ALL, P::GRADES_OWN]);
+        $healthRecords = $canViewHealthRecords
+            ? $student->healthRecords()->orderByDesc('date')->get()
+            : collect();
         $data = [
             'name' => $student->last_name,
             'first_name' => $student->first_name,
@@ -90,12 +101,14 @@ class StudentController extends Controller
             'student' => $student,
             'qrcode' => QrCode::size(300)->generate(json_encode($data)),
             'healthRecords' => $healthRecords,
+            'canViewHealthRecords' => $canViewHealthRecords,
+            'canViewSemesterAverages' => $canViewSemesterAverages,
         ]);
     }
 
     public function edit(string $id)
     {
-        $student = Student::with('grades.semester')->findOrFail($id);
+        $student = Student::with('semesterAverages.semester')->findOrFail($id);
         $this->authorize('update', $student);
 
         return view('students.edite', ['student' => $student, 'classrooms' => \App\Models\Classroom::orderBy('name')->get()]);
@@ -166,10 +179,11 @@ class StudentController extends Controller
 
     private function syncSemesterGrades(Student $student, Request $request): void
     {
-        $semesters = Semester::orderBy('position')->get();
+        $activeAcademicYearId = AcademicYear::active()->value('id');
+        $semesters = Semester::where('academic_year_id', $activeAcademicYearId)->orderBy('sequence')->get();
 
         foreach ($semesters as $semester) {
-            $value = $request->input($semester->code);
+            $value = $request->input('semester_'.$semester->sequence);
             if ($value === null || $value === '') {
                 continue;
             }
@@ -179,6 +193,7 @@ class StudentController extends Controller
             StudentGrade::updateOrCreate(
                 [
                     'student_id' => $student->id,
+                    'teaching_assignment_id' => null,
                     'semester_id' => $semester->id,
                     'subject_id' => null,
                 ],

@@ -1,9 +1,9 @@
 <?php
 
 use App\Livewire\Settings\Profile;
+use App\Models\Role;
 use App\Models\User;
 use Livewire\Livewire;
-use Livewire\Volt\Volt;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
@@ -76,4 +76,21 @@ test('correct password must be provided to delete account', function () {
     $response->assertHasErrors(['password']);
 
     expect($user->fresh())->not->toBeNull();
+});
+
+test('operational administrator cannot delete their account through profile settings', function () {
+    $admin = User::where('email', 'admin@gmail.com')->firstOrFail();
+
+    $this->actingAs($admin)
+        ->get(route('settings.profile'))
+        ->assertOk()
+        ->assertDontSee('Delete account');
+
+    Livewire::test('settings.delete-user-form')
+        ->set('password', 'ChangeMe123!')
+        ->call('deleteUser')
+        ->assertForbidden();
+
+    expect($admin->fresh())->not->toBeNull();
+    expect($admin->hasRole(Role::ROLE_ADMINISTRATOR))->toBeTrue();
 });
