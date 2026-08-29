@@ -5,7 +5,6 @@ namespace App\Livewire\Auth;
 use App\Models\Role as SchoolRole;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
@@ -25,15 +24,24 @@ class Register extends Component
 
     public string $password_confirmation = '';
 
-    /**
-     * Handle an incoming registration request.
-     */
     public function register(): void
     {
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
+            'email' => [
+                'required',
+                'string',
+                'lowercase',
+                'email',
+                'max:255',
+                'unique:'.User::class,
+            ],
+            'password' => [
+                'required',
+                'string',
+                'confirmed',
+                Rules\Password::defaults(),
+            ],
         ]);
 
         $user = DB::transaction(function () use ($validated) {
@@ -41,10 +49,16 @@ class Register extends Component
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
+
+                // Self-registered users start as students.
                 'user_type' => SchoolRole::ROLE_STUDENT,
+
+                // Administrator must approve the account.
+                'is_active' => false,
             ]);
 
-            $studentRole = Role::where('name', SchoolRole::ROLE_STUDENT)
+            $studentRole = Role::query()
+                ->where('name', SchoolRole::ROLE_STUDENT)
                 ->where('guard_name', 'web')
                 ->firstOrFail();
 
@@ -57,8 +71,14 @@ class Register extends Component
 
         event(new Registered($user));
 
-        Auth::login($user);
+        session()->flash(
+            'status',
+            'Your account has been created. An administrator must approve it before you can log in.'
+        );
 
-        $this->redirect(route('dashboard', absolute: false), navigate: true);
+        $this->redirect(
+            route('login', absolute: false),
+            navigate: true
+        );
     }
 }

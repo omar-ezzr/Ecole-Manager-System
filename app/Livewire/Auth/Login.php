@@ -40,14 +40,15 @@ class Login extends Component
             ]);
         }
 
-        if (! Auth::user()->is_active) {
-            Auth::logout();
-            RateLimiter::hit($this->throttleKey());
+    if (! Auth::user()->is_active) {
+    Auth::logout();
 
-            throw ValidationException::withMessages([
-                'email' => __('This account is inactive. Contact an administrator.'),
-            ]);
-        }
+    RateLimiter::hit($this->throttleKey());
+
+    throw ValidationException::withMessages([
+        'email' => __('Your account is inactive or awaiting administrator approval.'),
+    ]);
+}
 
         RateLimiter::clear($this->throttleKey());
         Session::regenerate();

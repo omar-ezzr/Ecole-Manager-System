@@ -14,9 +14,25 @@
                     <nav class="flex items-center gap-2 sm:gap-4">
                         @auth
                             <a href="{{ route('dashboard') }}" class="inline-flex items-center rounded-md border border-[#19140035] px-4 py-2 text-sm transition hover:border-black dark:border-[#3E3E3A] dark:hover:border-white" wire:navigate>Dashboard</a>
-                        @else
-                            <a href="{{ route('login') }}" class="rounded-md px-3 py-2 text-sm transition hover:bg-black/5 dark:hover:bg-white/10" wire:navigate>Log in</a>
-                        @endauth
+                       @else
+    <a
+        href="{{ route('login') }}"
+        class="rounded-md px-3 py-2 text-sm transition hover:bg-black/5 dark:hover:bg-white/10"
+        wire:navigate
+    >
+        Log in
+    </a>
+
+    @if (Route::has('register'))
+        <a
+            href="{{ route('register') }}"
+            class="inline-flex items-center rounded-md border border-[#19140035] px-4 py-2 text-sm transition hover:border-black dark:border-[#3E3E3A] dark:hover:border-white"
+            wire:navigate
+        >
+            Register
+        </a>
+    @endif
+@endauth
                     </nav>
                 @endif
             </header>
