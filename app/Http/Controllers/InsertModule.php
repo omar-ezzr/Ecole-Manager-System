@@ -42,7 +42,7 @@ class InsertModule extends Controller
         ]);
 
         $reader = ExcelImportReader::fromUploadedFile($request->file('excel_file_health_records'));
-        $rows = $reader->rows();
+        $rows = $reader->rows('excel_file_health_records', 'health records import');
 
         if ($rows === []) {
             return $this->emptyWorkbookResponse('excel_file_health_records');
@@ -115,7 +115,7 @@ class InsertModule extends Controller
         ]);
 
         $reader = ExcelImportReader::fromUploadedFile($request->file('excel_file_semesters_5_6'));
-        $rows = $reader->rows();
+        $rows = $reader->rows('excel_file_semesters_5_6', 'semesters 5 and 6 import');
 
         if ($rows === []) {
             return $this->emptyWorkbookResponse('excel_file_semesters_5_6');
@@ -175,7 +175,7 @@ class InsertModule extends Controller
         ]);
 
         $reader = ExcelImportReader::fromUploadedFile($request->file($field));
-        $rows = $reader->rows();
+        $rows = $reader->rows($field, "semester {$semesterPosition} import");
 
         if ($rows === []) {
             return $this->emptyWorkbookResponse($field);

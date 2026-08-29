@@ -21,7 +21,7 @@ class ImportController extends Controller
         ]);
 
         $reader = ExcelImportReader::fromUploadedFile($request->file('excel_file'));
-        $rows = $reader->rows();
+        $rows = $reader->rows('excel_file', 'students import');
 
         if ($rows === []) {
             return back()
@@ -44,6 +44,11 @@ class ImportController extends Controller
         }
 
         DB::transaction(function () use ($reader, $rows, $classrooms, $academicYear, &$created, &$updated, &$skipped, &$errors): void {
+            $semesters = Semester::where('academic_year_id', $academicYear->id)
+                ->whereIn('sequence', [1, 2, 3, 4, 5, 6])
+                ->get()
+                ->keyBy('sequence');
+
             foreach ($rows as $row) {
                 $rowNumber = $row['_row'] ?? '?';
                 $studentNumber = $reader->text($row, 'student_number');
@@ -92,7 +97,7 @@ class ImportController extends Controller
                     $created++;
                 }
 
-                $this->saveSemesterGrades($reader, $row, $student, $rowNumber, $errors);
+                $this->saveSemesterGrades($reader, $row, $student, $rowNumber, $semesters, $errors);
             }
         });
 
@@ -117,6 +122,7 @@ class ImportController extends Controller
         array $row,
         Student $student,
         int|string $rowNumber,
+        \Illuminate\Support\Collection $semesters,
         array &$errors
     ): void {
         foreach ([1, 2, 3, 4, 5, 6] as $position) {
@@ -134,9 +140,7 @@ class ImportController extends Controller
 
             $this->authorize('createForStudent', [StudentGrade::class, $student]);
 
-            $semester = Semester::where('academic_year_id', AcademicYear::active()->value('id'))
-                ->where('sequence', $position)
-                ->first();
+            $semester = $semesters->get($position);
 
             if (! $semester) {
                 continue;

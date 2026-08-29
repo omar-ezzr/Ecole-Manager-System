@@ -108,7 +108,6 @@ Template downloads:
 API endpoints:
 
 - `GET /api/user`
-- `POST /api/auth/register`
 
 ## Excel Import Rules
 
@@ -153,40 +152,6 @@ Legacy cleanup:
 - `database/migrations/2026_07_23_000000_remove_compagnie_and_groupement_domain.php` defensively removes the old legacy domain if it exists.
 - `database/migrations/2026_07_23_010000_restrict_school_hierarchy_foreign_keys.php` changes the repository-original cascade behavior to restricted deletes on the school hierarchy.
 
-## user login 
-
-
-Operational Administrator :
-admin@gmail.com
-ecole123
-
-Director:
-director@gmail.com
-ecole123
-
-Service Secretariat :
-secretariat@gmail.com
-ecole123
-
-
-Professor : 
-professor1@gmail.com
-ecole123
-
-
-Professor : 
-professor2@gmail.com
-ecole123
-
-
-Student :
-student1@gmail.com
-ecole123
-
-
-Student : 
-student2@gmail.com
-ecole123
 
 ## Local Setup
 
@@ -222,6 +187,102 @@ For a production-style asset build:
 npm run build
 php artisan serve
 ```
+
+
+## Production Deployment
+
+Requirements from the project manifests:
+
+- PHP `^8.2`
+- Composer
+- Node/npm capable of running Vite 6
+- A Laravel-supported database; `.env.example` defaults to MySQL
+- PHP extensions required by Laravel plus PhpSpreadsheet, PDO database driver, `mbstring`, `xml`, `zip`, `gd`, and `fileinfo`
+- A web server or platform configured with the document root set to `/public`
+
+Environment setup:
+
+```bash
+cp .env.example .env
+```
+
+Set production environment values without committing secrets:
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://your-domain.example
+DB_CONNECTION=mysql
+DB_HOST=
+DB_DATABASE=
+DB_USERNAME=
+DB_PASSWORD=
+SESSION_SECURE_COOKIE=true
+```
+
+Configure `CACHE_STORE`, `SESSION_DRIVER`, `QUEUE_CONNECTION`, `LOG_CHANNEL`, and `FILESYSTEM_DISK` for the deployment environment. If the application is behind a known reverse proxy or load balancer, set `TRUSTED_PROXIES` to that proxy IP/CIDR list; leave it blank when no trusted proxy is required.
+
+Install dependencies and build assets:
+
+```bash
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+```
+
+Generate `APP_KEY` only for a new production installation:
+
+```bash
+php artisan key:generate
+```
+
+Do not regenerate `APP_KEY` on an existing deployment because encrypted data and sessions can become unreadable.
+
+Before schema changes, take a production database backup. Then run migrations explicitly:
+
+```bash
+php artisan migrate --force
+```
+
+Optimize Laravel after deployment:
+
+```bash
+php artisan optimize
+```
+
+Writable paths:
+
+```text
+storage/
+bootstrap/cache/
+```
+
+Grant these paths to the web-server/application user or group. Do not use world-writable `777` permissions as the deployment default.
+
+Queue: no production queue worker is currently required by application features. The repository local `composer run dev` command starts a listener for development convenience only.
+
+Scheduler: no Laravel scheduler cron is currently required.
+
+Health check: Laravel exposes `/up`.
+
+Suggested deployment order:
+
+1. Put the app in maintenance mode if the deployment requires downtime.
+2. Deploy code.
+3. Install Composer dependencies.
+4. Install npm dependencies and build assets.
+5. Back up the production database.
+6. Run `php artisan migrate --force`.
+7. Run `php artisan optimize`.
+8. Restart PHP-FPM/application containers and any workers if infrastructure adds them later.
+9. Verify `/up`, login, dashboard access, and critical role-protected pages.
+10. Disable maintenance mode.
+
+Rollback notes:
+
+- Restore the previous code release.
+- Restore the database backup when a schema/data migration cannot be safely reversed.
+- Run `php artisan optimize:clear` and rebuild caches with `php artisan optimize` after rollback.
 
 ## Verification
 

@@ -5,12 +5,17 @@ namespace App\Support;
 use DateTimeInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use Throwable;
 
 class ExcelImportReader
 {
     public const MAX_UPLOAD_KILOBYTES = 10240;
+
+    public const MAX_IMPORT_ROWS = 5000;
 
     private const ALIASES = [
         'nom' => 'last_name',
@@ -76,10 +81,38 @@ class ExcelImportReader
         return ['required', 'file', 'mimes:xlsx,xls,csv', 'max:'.self::MAX_UPLOAD_KILOBYTES];
     }
 
-    public function rows(): array
+    public function rows(string $field = 'excel_file', string $operation = 'excel import', ?int $maxRows = null): array
     {
         $path = $this->file instanceof UploadedFile ? $this->file->getRealPath() : $this->file;
-        $spreadsheet = IOFactory::load($path);
+        $maxRows ??= self::MAX_IMPORT_ROWS;
+
+        try {
+            $readerType = IOFactory::identify($path);
+            $extension = mb_strtolower($this->file instanceof UploadedFile
+                ? $this->file->getClientOriginalExtension()
+                : pathinfo((string) $path, PATHINFO_EXTENSION));
+
+            if (! in_array($readerType, ['Xlsx', 'Xls', 'Csv'], true)
+                || (in_array($extension, ['xlsx', 'xls'], true) && $readerType === 'Csv')) {
+                throw new \RuntimeException("Unsupported or mismatched spreadsheet reader type [{$readerType}].");
+            }
+
+            $spreadsheet = IOFactory::load($path);
+        } catch (Throwable $exception) {
+            Log::warning('Spreadsheet import failed while loading workbook.', [
+                'operation' => $operation,
+                'field' => $field,
+                'client_extension' => $this->file instanceof UploadedFile ? $this->file->getClientOriginalExtension() : null,
+                'client_mime_type' => $this->file instanceof UploadedFile ? $this->file->getClientMimeType() : null,
+                'size' => $this->file instanceof UploadedFile ? $this->file->getSize() : null,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            throw ValidationException::withMessages([
+                $field => 'The uploaded workbook could not be read. Please upload a valid spreadsheet file.',
+            ]);
+        }
         $worksheet = $spreadsheet->getActiveSheet();
         $headers = [];
         $rows = [];
@@ -118,6 +151,21 @@ class ExcelImportReader
             }
 
             $rows[] = $rowData;
+
+            if (count($rows) > $maxRows) {
+                Log::warning('Spreadsheet import rejected because it exceeded the row limit.', [
+                    'operation' => $operation,
+                    'field' => $field,
+                    'max_rows' => $maxRows,
+                    'client_extension' => $this->file instanceof UploadedFile ? $this->file->getClientOriginalExtension() : null,
+                    'client_mime_type' => $this->file instanceof UploadedFile ? $this->file->getClientMimeType() : null,
+                    'size' => $this->file instanceof UploadedFile ? $this->file->getSize() : null,
+                ]);
+
+                throw ValidationException::withMessages([
+                    $field => "The uploaded workbook may not contain more than {$maxRows} data rows.",
+                ]);
+            }
         }
 
         return $rows;
