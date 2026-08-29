@@ -2,13 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Models\AcademicYear;
+use App\Models\AttendanceRecord;
 use App\Models\Classroom;
 use App\Models\Role;
+use App\Models\Semester;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\ExcelImportReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
@@ -35,6 +39,48 @@ class ExcelImportTest extends TestCase
             'student_number' => 'IMP-001',
             'classroom_id' => $classroom->id,
         ]);
+        $student = Student::where('student_number', 'IMP-001')->firstOrFail();
+        $this->assertDatabaseHas('student_enrollments', [
+            'student_id' => $student->id,
+            'classroom_id' => $classroom->id,
+            'academic_year_id' => AcademicYear::active()->firstOrFail()->id,
+            'left_at' => null,
+        ]);
+    }
+
+    public function test_retired_absence_column_is_removed_from_students_schema(): void
+    {
+        $this->assertFalse(Schema::hasColumn('students', 'absences_count'));
+    }
+
+    public function test_legacy_absence_headers_are_accepted_but_ignored(): void
+    {
+        $admin = User::where('email', 'admin@gmail.com')->firstOrFail();
+        $classroom = Classroom::firstOrFail();
+
+        foreach (['absences_count', 'arrets'] as $index => $legacyHeader) {
+            $studentNumber = 'IMP-LEGACY-ABS-'.($index + 1);
+            $file = $this->xlsx([
+                ['student_number', 'first_name', 'last_name', 'classroom_id', $legacyHeader],
+                [$studentNumber, 'Legacy', 'Compatible', $classroom->id, 999],
+            ]);
+
+            $this->actingAs($admin)
+                ->post(route('excel.import'), ['excel_file' => $file])
+                ->assertRedirect()
+                ->assertSessionHas('success');
+
+            $student = Student::where('student_number', $studentNumber)->firstOrFail();
+            $this->assertDatabaseHas('student_enrollments', [
+                'student_id' => $student->id,
+                'classroom_id' => $classroom->id,
+                'academic_year_id' => AcademicYear::active()->firstOrFail()->id,
+                'left_at' => null,
+            ]);
+        }
+
+        $this->assertSame('absences_count', (new ExcelImportReader(__FILE__))->canonicalHeader('arrets'));
+        $this->assertSame(0, AttendanceRecord::count());
     }
 
     public function test_student_import_rejects_nonexistent_numeric_classroom_id(): void
@@ -52,6 +98,50 @@ class ExcelImportTest extends TestCase
 
         $this->assertDatabaseMissing('students', ['student_number' => 'IMP-002']);
         $this->assertStringContainsString('invalid classroom_id', session('import_errors')[0]);
+    }
+
+    public function test_student_import_requires_an_active_academic_year(): void
+    {
+        $admin = User::where('email', 'admin@gmail.com')->firstOrFail();
+        $classroom = Classroom::firstOrFail();
+        AcademicYear::query()->update(['is_active' => false]);
+        $file = $this->xlsx([
+            ['student_number', 'first_name', 'last_name', 'classroom_id'],
+            ['IMP-NO-ACTIVE-YEAR', 'Import', 'No Year', $classroom->id],
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('excel.import'), ['excel_file' => $file])
+            ->assertSessionHasErrors('excel_file');
+
+        $this->assertDatabaseMissing('students', ['student_number' => 'IMP-NO-ACTIVE-YEAR']);
+    }
+
+    public function test_student_import_classroom_update_records_a_transfer(): void
+    {
+        $admin = User::where('email', 'admin@gmail.com')->firstOrFail();
+        [$oldClassroom, $newClassroom] = Classroom::orderBy('id')->limit(2)->get()->all();
+        $student = Student::factory()->create(['classroom_id' => $oldClassroom->id]);
+        $oldEnrollment = $student->currentEnrollment()->firstOrFail();
+        $file = $this->xlsx([
+            ['student_number', 'first_name', 'last_name', 'classroom_id'],
+            [$student->student_number, 'Imported', 'Transfer', $newClassroom->id],
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('excel.import'), ['excel_file' => $file])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertSame($newClassroom->id, $student->fresh()->classroom_id);
+        $this->assertNotNull($oldEnrollment->fresh()->left_at);
+        $this->assertSame(1, $student->enrollments()->active()->count());
+        $this->assertDatabaseHas('student_enrollments', [
+            'student_id' => $student->id,
+            'classroom_id' => $newClassroom->id,
+            'academic_year_id' => AcademicYear::active()->firstOrFail()->id,
+            'left_at' => null,
+        ]);
     }
 
     public function test_student_import_rejects_text_empty_and_ambiguous_classroom_values(): void
@@ -146,6 +236,31 @@ class ExcelImportTest extends TestCase
         }
     }
 
+    public function test_imported_semester_grades_outside_zero_to_twenty_are_rejected(): void
+    {
+        $admin = User::where('email', 'admin@gmail.com')->firstOrFail();
+        $student = Student::firstOrFail();
+        $semester = Semester::where('sequence', 1)->whereHas('academicYear', fn ($years) => $years->active())->firstOrFail();
+        $file = $this->xlsx([
+            ['student_number', 'exam_grade'],
+            [$student->student_number, 20.01],
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('excel.importSemester1'), ['excel_file_semester_1' => $file])
+            ->assertRedirect()
+            ->assertSessionHas('import_errors');
+
+        $this->assertStringContainsString('grade must be between 0 and 20', session('import_errors')[0]);
+        $this->assertDatabaseMissing('student_grades', [
+            'student_id' => $student->id,
+            'semester_id' => $semester->id,
+            'teaching_assignment_id' => null,
+            'subject_id' => null,
+            'grade' => 20.01,
+        ]);
+    }
+
     private function xlsx(array $rows): UploadedFile
     {
         $path = $this->xlsxPath($rows);
@@ -155,7 +270,7 @@ class ExcelImportTest extends TestCase
 
     private function xlsxPath(array $rows): string
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $spreadsheet->getActiveSheet()->fromArray($rows);
         $path = tempnam(sys_get_temp_dir(), 'import-test-').'.xlsx';
         (new Xlsx($spreadsheet))->save($path);

@@ -2,6 +2,7 @@
 
 namespace App\View\Components;
 
+use App\Models\AcademicYear;
 use App\Models\Student;
 use App\Models\StudentGrade;
 use App\Support\SchoolPermissions as P;
@@ -38,12 +39,22 @@ class StudentSemesterGrades extends Component
             return 0;
         }
 
-        return (float) StudentGrade::query()
+        $academicYearId = AcademicYear::active()->value('id');
+
+        if (! $academicYearId) {
+            return 0;
+        }
+
+        $grades = StudentGrade::query()
             ->join('semesters', 'student_grades.semester_id', '=', 'semesters.id')
             ->where('student_grades.student_id', $this->student->id)
             ->whereNull('student_grades.teaching_assignment_id')
             ->whereNull('student_grades.subject_id')
+            ->where('semesters.academic_year_id', $academicYearId)
             ->where('semesters.position', $position)
-            ->avg('student_grades.grade');
+            ->select('student_grades.*')
+            ->get();
+
+        return StudentGrade::weightedAverage($grades) ?? 0;
     }
 }

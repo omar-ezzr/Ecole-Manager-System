@@ -35,11 +35,6 @@
         <flux:input type="file" name="excel_file_health_records" wire:model="logo" label="Importer" accept=".xlsx,.xls,.csv" />
         <flux:button variant="filled" type="submit" class="w-full p-1 mt-2">Import</flux:button>
     </form>
-    @if(session('success'))
-        <div class="mt-4 rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900 dark:border-teal-400/20 dark:bg-teal-400/10 dark:text-teal-100">
-            {{ session('success') }}
-        </div>
-    @endif
     @if(session('import_errors') && count(session('import_errors')) > 0)
         <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
             <p class="font-semibold">Import warnings</p>

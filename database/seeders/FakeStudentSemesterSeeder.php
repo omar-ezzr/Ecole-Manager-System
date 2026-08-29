@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\AcademicYear;
 use App\Models\Classroom;
 use App\Models\Semester;
 use App\Models\Student;
@@ -55,7 +56,6 @@ class FakeStudentSemesterSeeder extends Seeder
                 'height' => 165 + ($index % 15),
                 'weight' => 55 + ($index % 20),
                 'appreciation_score' => 0,
-                'absences_count' => $index % 5,
                 'appreciation' => 'Consistent effort throughout the semester.',
                 'created_at' => $timestamp,
                 'updated_at' => $timestamp,
@@ -78,7 +78,6 @@ class FakeStudentSemesterSeeder extends Seeder
                 'height',
                 'weight',
                 'appreciation_score',
-                'absences_count',
                 'appreciation',
                 'updated_at',
             ]
@@ -88,6 +87,13 @@ class FakeStudentSemesterSeeder extends Seeder
             ->whereIn('student_number', collect($studentRows)->pluck('student_number'))
             ->get()
             ->keyBy('student_number');
+        $academicYear = AcademicYear::active()->first();
+
+        if (! $academicYear) {
+            throw new RuntimeException('Cannot seed student enrollments because no academic year is active.');
+        }
+
+        $this->syncEnrollments($students->values(), $academicYear->id, $timestamp);
 
         $gradeRows = [];
 
@@ -127,6 +133,73 @@ class FakeStudentSemesterSeeder extends Seeder
         $decimal = (($studentIndex + $semesterPosition) % 4) * 0.25;
 
         return min(round($base + $decimal, 2), 19.5);
+    }
+
+    private function syncEnrollments($students, int $academicYearId, $timestamp): void
+    {
+        $studentIds = $students->modelKeys();
+        $existingByStudent = DB::table('student_enrollments')
+            ->whereIn('student_id', $studentIds)
+            ->get()
+            ->groupBy('student_id');
+        $closeRows = [];
+        $newRows = [];
+
+        foreach ($students as $student) {
+            $existing = $existingByStudent->get($student->id, collect());
+            $active = $existing->whereNull('left_at');
+
+            if ($active->count() > 1) {
+                throw new RuntimeException("Student {$student->student_number} has multiple active enrollments.");
+            }
+
+            $current = $active->first();
+
+            if ($current
+                && (int) $current->classroom_id === (int) $student->classroom_id
+                && (int) $current->academic_year_id === $academicYearId) {
+                continue;
+            }
+
+            if ($existing->contains(fn (object $enrollment) => (int) $enrollment->classroom_id === (int) $student->classroom_id
+                && (int) $enrollment->academic_year_id === $academicYearId
+            )) {
+                throw new RuntimeException("Student {$student->student_number} already has a closed enrollment for the seeded context.");
+            }
+
+            if ($current) {
+                $closeRows[] = [
+                    'id' => $current->id,
+                    'left_at' => max($timestamp->toDateString(), $current->enrolled_at),
+                    'updated_at' => $timestamp,
+                ];
+            }
+
+            $newRows[] = [
+                'student_id' => $student->id,
+                'classroom_id' => $student->classroom_id,
+                'academic_year_id' => $academicYearId,
+                'enrolled_at' => $timestamp->toDateString(),
+                'left_at' => null,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ];
+        }
+
+        DB::transaction(function () use ($closeRows, $newRows): void {
+            collect($closeRows)
+                ->groupBy('left_at')
+                ->each(fn ($rows, string $leftAt) => DB::table('student_enrollments')
+                    ->whereIn('id', $rows->pluck('id'))
+                    ->update([
+                        'left_at' => $leftAt,
+                        'updated_at' => $rows->first()['updated_at'],
+                    ]));
+
+            foreach (array_chunk($newRows, 500) as $chunk) {
+                DB::table('student_enrollments')->insert($chunk);
+            }
+        });
     }
 
     private function appreciationFor(float $grade): string

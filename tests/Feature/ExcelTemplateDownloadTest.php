@@ -31,9 +31,11 @@ class ExcelTemplateDownloadTest extends TestCase
             ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
         $this->assertSame(
-            ['student_number', 'first_name', 'last_name', 'classroom_id', 'phone', 'email', 'diploma', 'city', 'address', 'education_level', 'height', 'weight', 'appreciation_score', 'absences_count', 'appreciation'],
+            ['student_number', 'first_name', 'last_name', 'classroom_id', 'phone', 'email', 'diploma', 'city', 'address', 'education_level', 'height', 'weight', 'appreciation_score', 'appreciation'],
             $this->headers(resource_path('templates/students-template.xlsx'))
         );
+        $this->assertNotContains('absences_count', $this->headers(resource_path('templates/students-template.xlsx')));
+        $this->assertNotContains('arrets', array_map('strtolower', $this->headers(resource_path('templates/students-template.xlsx'))));
         $this->assertSame(
             ['student_number', 'date', 'type', 'medical_prescription'],
             $this->headers(resource_path('templates/health-records-template.xlsx'))

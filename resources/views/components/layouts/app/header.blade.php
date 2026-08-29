@@ -1,9 +1,7 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
-    <head>               <link rel="icon" href="{!! asset('favicon.ico') !!}"/>
-
-
-
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+    <head>
+        <link rel="icon" href="{{ asset('favicon.ico') }}">
         @include('partials.head')
     </head>
 
@@ -55,7 +53,7 @@
                     <flux:menu.separator />
 
                     <flux:menu.radio.group>
-                        <flux:menu.item href="/settings/profile" icon="cog" wire:navigate>{{ __('Settings') }}</flux:menu.item>
+                        <flux:menu.item href="{{ route('settings.profile') }}" icon="cog" wire:navigate>{{ __('Settings') }}</flux:menu.item>
                     </flux:menu.radio.group>
 
                     <flux:menu.separator />

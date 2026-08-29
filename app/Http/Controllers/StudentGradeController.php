@@ -10,6 +10,7 @@ use App\Models\TeachingAssignment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class StudentGradeController extends Controller
 {
@@ -36,31 +37,53 @@ class StudentGradeController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $data = $request->validate([
             'teaching_assignment_id' => ['required', 'integer', 'exists:teaching_assignments,id'],
             'semester_id' => ['required', 'integer', 'exists:semesters,id'],
-            'grades' => ['required', 'array'],
-            'grades.*.student_id' => ['required', 'integer', 'exists:students,id'],
-            'grades.*.grade' => ['nullable', 'numeric', 'min:0'],
+            'grades' => ['required', 'array', 'min:1'],
+            'grades.*.student_id' => ['required', 'integer', 'distinct', 'exists:students,id'],
+            'grades.*.grade' => [
+                'nullable',
+                'numeric',
+                'between:'.StudentGrade::MIN_GRADE.','.StudentGrade::MAX_GRADE,
+            ],
             'grades.*.type' => ['nullable', 'string', 'max:255'],
             'grades.*.coefficient' => ['nullable', 'numeric', 'gt:0'],
         ]);
 
-        $assignment = TeachingAssignment::with('subject')->findOrFail($request->integer('teaching_assignment_id'));
-        $semester = Semester::findOrFail($request->integer('semester_id'));
-        $rows = collect($request->input('grades'));
-        $students = Student::whereIn('id', $rows->pluck('student_id')->all())->get()->keyBy('id');
+        $assignment = TeachingAssignment::with('subject.semester')->findOrFail($data['teaching_assignment_id']);
+        $semester = Semester::findOrFail($data['semester_id']);
+        $rows = collect($data['grades']);
+        $students = Student::query()
+            ->whereIn('id', $rows->pluck('student_id')->all())
+            ->with(['enrollments' => fn ($enrollments) => $enrollments
+                ->where('classroom_id', $assignment->classroom_id)
+                ->where('academic_year_id', $assignment->academic_year_id)])
+            ->get()
+            ->keyBy('id');
+        $existingGrades = StudentGrade::query()
+            ->where('teaching_assignment_id', $assignment->id)
+            ->where('semester_id', $semester->id)
+            ->whereIn('student_id', $students->keys())
+            ->get()
+            ->keyBy('student_id');
 
-        abort_if($rows->isEmpty(), 422, 'At least one grade row is required.');
-
-        foreach ($rows as $row) {
+        foreach ($rows as $index => $row) {
             $student = $students->get((int) $row['student_id']);
             abort_if(! $student, 422, 'A selected student does not exist.');
 
-            $this->authorize('createForAssignment', [StudentGrade::class, $assignment, $student, $semester]);
+            $existingGrade = $existingGrades->get($student->id);
+
+            if ($existingGrade) {
+                $this->authorize('update', $existingGrade);
+            } else {
+                $this->authorize('createForAssignment', [StudentGrade::class, $assignment, $student, $semester]);
+            }
+
+            $this->validateAcademicContext($assignment, $student, $semester, $index);
         }
 
-        DB::transaction(function () use ($rows, $students, $assignment, $semester): void {
+        DB::transaction(function () use ($rows, $students, $existingGrades, $assignment, $semester): void {
             foreach ($rows as $row) {
                 $grade = $row['grade'] ?? null;
 
@@ -69,20 +92,25 @@ class StudentGradeController extends Controller
                 }
 
                 $student = $students->get((int) $row['student_id']);
+                $values = [
+                    'grade' => $grade,
+                    'type' => filled($row['type'] ?? null) ? strip_tags((string) $row['type']) : 'Exam',
+                    'coefficient' => $row['coefficient'] ?? 1,
+                ];
+                $existingGrade = $existingGrades->get($student->id);
 
-                StudentGrade::updateOrCreate(
-                    [
-                        'student_id' => $student->id,
-                        'teaching_assignment_id' => $assignment->id,
-                        'semester_id' => $semester->id,
-                    ],
-                    [
-                        'subject_id' => $assignment->subject_id,
-                        'grade' => $grade,
-                        'type' => filled($row['type'] ?? null) ? strip_tags((string) $row['type']) : 'Exam',
-                        'coefficient' => $row['coefficient'] ?? 1,
-                    ]
-                );
+                if ($existingGrade) {
+                    $existingGrade->update($values);
+                } else {
+                    StudentGrade::create(array_merge(
+                        $values,
+                        [
+                            'student_id' => $student->id,
+                            'teaching_assignment_id' => $assignment->id,
+                            'semester_id' => $semester->id,
+                        ]
+                    ));
+                }
             }
         });
 
@@ -95,14 +123,7 @@ class StudentGradeController extends Controller
     {
         $this->authorize('view', $student);
 
-        $visibleGrades = StudentGrade::query()
-            ->with(['student', 'semester', 'subject', 'teachingAssignment.professor'])
-            ->where('student_id', $student->id)
-            ->whereNotNull('teaching_assignment_id')
-            ->orderBy('semester_id')
-            ->get()
-            ->filter(fn (StudentGrade $grade) => $request->user()->can('view', $grade))
-            ->values();
+        $visibleGrades = $this->visibleResultGrades($request, $student);
 
         $availableYears = AcademicYear::query()
             ->whereIn('id', $visibleGrades->pluck('semester.academic_year_id')->filter()->unique())
@@ -114,19 +135,16 @@ class StudentGradeController extends Controller
             : ($availableYears->first() ?? AcademicYear::active()->first());
 
         $grades = $selectedYear
-            ? $visibleGrades->where('semester.academic_year_id', $selectedYear->id)->values()
+            ? $this->visibleResultGrades($request, $student, $selectedYear)
             : collect();
 
         $semesterResults = $grades
             ->groupBy('semester_id')
             ->map(function (Collection $semesterGrades) {
-                $totalWeight = $semesterGrades->sum('coefficient');
-                $weighted = $semesterGrades->sum(fn (StudentGrade $grade) => (float) $grade->grade * (float) $grade->coefficient);
-
                 return [
                     'semester' => $semesterGrades->first()->semester,
                     'grades' => $semesterGrades,
-                    'average' => $totalWeight > 0 ? round($weighted / $totalWeight, 2) : null,
+                    'average' => StudentGrade::weightedAverage($semesterGrades),
                 ];
             })
             ->sortBy(fn (array $entry) => $entry['semester']->sequence)
@@ -140,30 +158,70 @@ class StudentGradeController extends Controller
         ]);
     }
 
-    public function reportCard(Student $student, Semester $semester)
+    public function reportCard(Request $request, Student $student, Semester $semester)
     {
         $this->authorize('view', $student);
         $this->authorize('view', $semester);
 
-        $grades = StudentGrade::query()
-            ->with(['student', 'semester', 'subject', 'teachingAssignment.professor'])
-            ->where('student_id', $student->id)
-            ->where('semester_id', $semester->id)
-            ->whereNotNull('teaching_assignment_id')
-            ->get()
-            ->filter(fn (StudentGrade $grade) => request()->user()->can('view', $grade))
-            ->values();
-
-        $totalWeight = $grades->sum('coefficient');
-        $weightedAverage = $totalWeight > 0
-            ? round($grades->sum(fn (StudentGrade $grade) => (float) $grade->grade * (float) $grade->coefficient) / $totalWeight, 2)
-            : null;
+        $semester->load('academicYear');
+        $grades = $this->visibleResultGrades($request, $student, $semester->academicYear, $semester);
 
         return view('student-grades.report-card', [
             'student' => $student->load('classroom.department.school'),
-            'semester' => $semester->load('academicYear'),
+            'semester' => $semester,
             'grades' => $grades,
-            'weightedAverage' => $weightedAverage,
+            'weightedAverage' => StudentGrade::weightedAverage($grades),
         ]);
+    }
+
+    private function validateAcademicContext(
+        TeachingAssignment $assignment,
+        Student $student,
+        Semester $semester,
+        int|string $rowIndex
+    ): void {
+        $errors = [];
+
+        if (! $student->hasEnrollmentFor($assignment->classroom_id, $assignment->academic_year_id)) {
+            $errors["grades.{$rowIndex}.student_id"] = 'The selected student was not enrolled in the assigned classroom for this academic year.';
+        }
+
+        if ($semester->academic_year_id !== $assignment->academic_year_id) {
+            $errors['semester_id'] = 'The selected semester does not belong to the teaching assignment academic year.';
+        }
+
+        if ($assignment->subject?->semester_id !== null
+            && $assignment->subject->semester_id !== $semester->id) {
+            $errors['semester_id'] = 'The teaching assignment subject is not configured for the selected semester.';
+        }
+
+        if ($assignment->subject?->is_active !== true) {
+            $errors['teaching_assignment_id'] = 'The teaching assignment subject is inactive.';
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * @return Collection<int, StudentGrade>
+     */
+    private function visibleResultGrades(
+        Request $request,
+        Student $student,
+        ?AcademicYear $academicYear = null,
+        ?Semester $semester = null
+    ): Collection {
+        return StudentGrade::query()
+            ->with(['student', 'semester.academicYear', 'subject', 'teachingAssignment.professor'])
+            ->forAcademicResults($student)
+            ->when($academicYear, fn ($grades) => $grades->forAcademicYear($academicYear))
+            ->when($semester, fn ($grades) => $grades->forSemester($semester))
+            ->orderBy('semester_id')
+            ->orderBy('subject_id')
+            ->get()
+            ->filter(fn (StudentGrade $grade) => $request->user()->can('view', $grade))
+            ->values();
     }
 }

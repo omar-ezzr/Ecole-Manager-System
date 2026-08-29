@@ -2,25 +2,49 @@
 
 namespace App\View\Components;
 
-use App\Models\Student;
+use App\Models\AcademicYear;
+use App\Models\AttendanceRecord;
+use App\Models\Classroom;
 use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
 
 class AbsencesChart extends Component
 {
+    public function __construct(
+        public ?AcademicYear $academicYear = null,
+        public ?Classroom $classroom = null,
+    ) {}
+
     public function render(): View|Closure|string
     {
-        $classrooms = Student::visibleTo(auth()->user())
-            ->join('classrooms', 'students.classroom_id', '=', 'classrooms.id')
-            ->selectRaw('classrooms.name as label, COALESCE(SUM(students.absences_count), 0) as absence_total')
-            ->groupBy('classrooms.id', 'classrooms.name')
-            ->orderBy('classrooms.name')
-            ->get();
+        $user = auth()->user();
+        $academicYear = $this->academicYear;
+
+        if (! $academicYear) {
+            $reportableYears = AcademicYear::query()
+                ->reportableForAttendance($user)
+                ->orderByDesc('starts_at')
+                ->get();
+            $academicYear = $reportableYears->firstWhere('is_active', true)
+                ?? $reportableYears->first();
+        }
+        $classroomCounts = collect();
+
+        if ($academicYear) {
+            $query = AttendanceRecord::query()
+                ->visibleTo($user)
+                ->forAcademicYear($academicYear)
+                ->when($this->classroom, fn ($attendance) => $attendance->forClassroom($this->classroom));
+            $classroomCounts = AttendanceRecord::classroomStatusCounts(
+                $query,
+                AttendanceRecord::STATUS_ABSENT
+            );
+        }
 
         return view('components.absences-chart', [
-            'labels' => $classrooms->pluck('label')->all(),
-            'absenceTotals' => $classrooms->pluck('absence_total')->map(fn ($total) => (int) $total)->all(),
+            'labels' => $classroomCounts->pluck('label')->all(),
+            'absenceTotals' => $classroomCounts->pluck('total')->all(),
         ]);
     }
 }

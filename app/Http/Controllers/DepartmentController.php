@@ -57,9 +57,9 @@ class DepartmentController extends Controller
         $this->authorize('update', $department);
 
         return view('departments.edite', [
-                'department' => $department,
-                'schools' => School::all(),
-            ]);
+            'department' => $department,
+            'schools' => School::all(),
+        ]);
     }
 
     public function update(Request $request, string $id)

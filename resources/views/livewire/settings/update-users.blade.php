@@ -1,32 +1,12 @@
 <div class="flex flex-col items-start">
     @include('partials.settings-heading')
 
-    <x-settings.layout :heading="__('Acounts')" :subheading=" __('Update users autorisations')">
-       <flux:fieldset>
- <form action="{{ route('students.index') }}" method="GET">
-    <div class="space-y-5">
-       
-            <flux:select label="Classroom" name="classroom_id">
-                @for($i = 1; $i <= 13; $i++)
-                    <option value="{{ $i }}">{{ $i }}</option>
-                @endfor
-            </flux:select>
-            
+    <x-settings.layout :heading="__('Account Administration')" :subheading="__('Accounts and roles are managed in the secured administration area')">
+        <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+            <flux:text>User creation, role assignment, and account status are centralized in User Administration.</flux:text>
+            <flux:button href="{{ route('administration.users.index') }}" class="mt-4" variant="primary" wire:navigate>
+                Open User Administration
+            </flux:button>
         </div>
-        <flux:button variant="primary" type="submit" class="w-full p-2">View Students</flux:button>
-    </div>
-</form>
-    <div class="m-3">
-    @if(session('success'))
-    <flux:callout  icon="bell">
-    <flux:callout.heading>Message à venir</flux:callout.heading>
-    <flux:callout.text>
-        {{ session('success') }}
-        <flux:callout.link href="{{route('students.index')}}">Explorer</flux:callout.link>
-    </flux:callout.text>
-</flux:callout>
-    @endif
-</div>
-</flux:fieldset>
     </x-settings.layout>
 </div>

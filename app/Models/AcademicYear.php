@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\SchoolPermissions as P;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -34,8 +35,27 @@ class AcademicYear extends Model
         return $this->hasMany(TeachingAssignment::class);
     }
 
+    public function studentEnrollments(): HasMany
+    {
+        return $this->hasMany(StudentEnrollment::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeReportableForAttendance(Builder $query, User $user): Builder
+    {
+        if ($user->can(P::ATTENDANCE_VIEW_ALL)) {
+            return $query;
+        }
+
+        if ($user->can(P::ATTENDANCE_VIEW_ASSIGNED) && $user->isProfessor()) {
+            return $query->whereHas('teachingAssignments', fn (Builder $assignments) => $assignments
+                ->where('professor_id', $user->id));
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 }

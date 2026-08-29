@@ -1,5 +1,5 @@
 <div>
-    <canvas id="absencesByClassroomChart"></canvas>
+    <canvas id="absencesByClassroomChart" role="img" aria-label="Recorded absences by classroom chart"></canvas>
 </div>
 
 @once <script src="{{ asset('js/chart.js') }}"></script> @endonce
@@ -11,7 +11,7 @@
         data: {
             labels: {{ Illuminate\Support\Js::from($labels) }},
             datasets: [{
-                label: 'Absence days',
+                label: 'Recorded absences',
                 data: {{ Illuminate\Support\Js::from($absenceTotals) }},
                 borderWidth: 1
             }]

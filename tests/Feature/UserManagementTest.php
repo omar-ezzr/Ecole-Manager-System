@@ -317,6 +317,33 @@ class UserManagementTest extends TestCase
             ->assertDontSee('action="'.route('administration.users.destroy', $admin).'"', false);
     }
 
+    public function test_user_administration_renders_account_status_and_permitted_actions(): void
+    {
+        $admin = $this->admin();
+        $activeUser = User::factory()->create([
+            'name' => 'Active Managed User',
+            'user_type' => Role::ROLE_DIRECTOR,
+            'is_active' => true,
+        ]);
+        $activeUser->assignRole(Role::ROLE_DIRECTOR);
+        $inactiveUser = User::factory()->create([
+            'name' => 'Inactive Managed User',
+            'user_type' => Role::ROLE_PROFESSOR,
+            'is_active' => false,
+        ]);
+        $inactiveUser->assignRole(Role::ROLE_PROFESSOR);
+
+        $this->actingAs($admin)
+            ->get(route('administration.users.index'))
+            ->assertOk()
+            ->assertSee('Active Managed User')
+            ->assertSee('Inactive Managed User')
+            ->assertSee('Active')
+            ->assertSee('Inactive')
+            ->assertSee(route('administration.users.edit', $activeUser), false)
+            ->assertSee(route('administration.users.destroy', $inactiveUser), false);
+    }
+
     private function admin(): User
     {
         return User::where('email', 'admin@gmail.com')->firstOrFail();

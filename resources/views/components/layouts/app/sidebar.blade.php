@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
-    <head>               <link rel="icon" href="{!! asset('favicon.ico') !!}"/>
-
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+    <head>
+        <link rel="icon" href="{{ asset('favicon.ico') }}">
         @include('partials.head')
     </head>
     <body class="min-h-screen bg-slate-50 text-slate-950 dark:bg-zinc-950 dark:text-zinc-50">
@@ -12,90 +12,81 @@
                 <x-app-logo />
             </a>
 
-            <flux:navlist variant="outline">
-                <flux:navlist.group heading="Workspace" class="grid">
-                    <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate > {{ __('Dashboard') }} </flux:navlist.item>
+            <flux:navlist variant="outline" class="space-y-3">
+                <flux:navlist.group heading="Workspace">
+                    <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
+                        {{ __('Dashboard') }}
+                    </flux:navlist.item>
                 </flux:navlist.group>
 
+                @canany(['students.view_all', 'students.view_assigned', 'students.view_own', 'health_records.view'])
+                    <flux:navlist.group heading="Students">
+                        @canany(['students.view_all', 'students.view_assigned', 'students.view_own'])
+                            <flux:navlist.item icon="user" href="{{ route('students.index') }}" :current="request()->routeIs('students.*')" wire:navigate>
+                                {{ __('Student records') }}
+                            </flux:navlist.item>
+                        @endcanany
+                        @can('health_records.view')
+                            <flux:navlist.item icon="heart" href="{{ route('health-records.index') }}" :current="request()->routeIs('health-records.*')" wire:navigate>
+                                {{ __('Health records') }}
+                            </flux:navlist.item>
+                        @endcan
+                    </flux:navlist.group>
+                @endcanany
+
+                @canany(['subjects.view', 'academic_years.view', 'semesters.view', 'teaching_assignments.view_all', 'teaching_assignments.view_own', 'grades.view_all', 'grades.view_assigned', 'grades.view_own'])
+                    <flux:navlist.group heading="Academic">
+                        @can('academic_years.view')
+                            <flux:navlist.item icon="calendar-days" href="{{ route('academic-years.index') }}" :current="request()->routeIs('academic-years.*')" wire:navigate>{{ __('Academic Years') }}</flux:navlist.item>
+                        @endcan
+                        @can('semesters.view')
+                            <flux:navlist.item icon="rectangle-group" href="{{ route('semesters.index') }}" :current="request()->routeIs('semesters.*')" wire:navigate>{{ __('Semesters') }}</flux:navlist.item>
+                        @endcan
+                        @can('subjects.view')
+                            <flux:navlist.item icon="book-open-text" href="{{ route('subjects.index') }}" :current="request()->routeIs('subjects.*')" wire:navigate>{{ __('Subjects') }}</flux:navlist.item>
+                        @endcan
+                        @canany(['teaching_assignments.view_all', 'teaching_assignments.view_own'])
+                            <flux:navlist.item icon="folder-git-2" href="{{ route('teaching-assignments.index') }}" :current="request()->routeIs('teaching-assignments.*')" wire:navigate>
+                                {{ auth()->user()->isProfessor() ? __('My Teaching Assignments') : __('Teaching Assignments') }}
+                            </flux:navlist.item>
+                        @endcanany
+                        @canany(['grades.view_all', 'grades.view_assigned', 'grades.view_own'])
+                            <flux:navlist.item icon="chart-bar-square" href="{{ auth()->user()->isStudentUser() && auth()->user()->student_id ? route('student-grades.results', auth()->user()->student_id) : route('student-grades.index') }}" :current="request()->routeIs('student-grades.*')" wire:navigate>
+                                {{ auth()->user()->isStudentUser() ? __('My Results') : __('Grades / Results') }}
+                            </flux:navlist.item>
+                        @endcanany
+                    </flux:navlist.group>
+                @endcanany
+
+                @canany(['attendance.view_all', 'attendance.view_assigned'])
+                    <flux:navlist.group heading="Attendance">
+                        <flux:navlist.item icon="clipboard-document-check" href="{{ url('absences') }}" :current="request()->is('absences')">
+                            {{ __('Attendance reports') }}
+                        </flux:navlist.item>
+                    </flux:navlist.group>
+                @endcanany
+
+                @canany(['schools.view', 'departments.view', 'classrooms.view_all', 'classrooms.view_assigned'])
+                    <flux:navlist.group heading="School structure">
+                        @can('schools.view')
+                            <flux:navlist.item icon="academic-cap" href="{{ route('schools.index') }}" :current="request()->routeIs('schools.*')" wire:navigate>{{ __('Schools') }}</flux:navlist.item>
+                        @endcan
+                        @can('departments.view')
+                            <flux:navlist.item icon="squares-2x2" href="{{ route('departments.index') }}" :current="request()->routeIs('departments.*')" wire:navigate>{{ __('Departments') }}</flux:navlist.item>
+                        @endcan
+                        @canany(['classrooms.view_all', 'classrooms.view_assigned'])
+                            <flux:navlist.item icon="building-office" href="{{ route('classrooms.index') }}" :current="request()->routeIs('classrooms.*')" wire:navigate>{{ __('Classrooms') }}</flux:navlist.item>
+                        @endcanany
+                    </flux:navlist.group>
+                @endcanany
+
                 @can('viewAny', \App\Models\User::class)
-                    <flux:navlist.item
-                        icon="users"
-                        href="{{ route('administration.users.index') }}"
-                        :current="request()->routeIs('administration.users.*')"
-                        wire:navigate
-                    >
-                        {{ __('User administration') }}
-                    </flux:navlist.item>
-                @endcan
-
-                @canany(['students.view_all', 'students.view_assigned', 'students.view_own'])
-                    <flux:navlist.item icon="user" href="{{ route('students.index') }}" :current="request()->routeIs('students.*')">{{ __('Student records') }}</flux:navlist.item>
-                @endcanany
-                @can('students.create')
-                    <flux:navlist.group expandable heading="Students" class="hidden lg:grid">
-                        <flux:navlist.item href="{{ route('students.create') }}">Create manually</flux:navlist.item>
+                    <flux:navlist.group heading="Administration">
+                        <flux:navlist.item icon="users" href="{{ route('administration.users.index') }}" :current="request()->routeIs('administration.users.*')" wire:navigate>
+                            {{ __('User administration') }}
+                        </flux:navlist.item>
                     </flux:navlist.group>
                 @endcan
-
-                @canany(['classrooms.view_all', 'classrooms.view_assigned'])
-                    <flux:navlist.item icon="building-office" href="{{ route('classrooms.index') }}" :current="request()->routeIs('classrooms.*')" wire:navigate>{{ __('Classrooms') }}</flux:navlist.item>
-                @endcanany
-                @can('classrooms.manage')
-                    <flux:navlist.group expandable heading="Classes" class="hidden lg:grid">
-                        <flux:navlist.item href="{{ route('classrooms.create') }}">Create manually</flux:navlist.item>
-                    </flux:navlist.group>
-                @endcan
-
-                @can('departments.view')
-              <flux:navlist.item icon="squares-2x2"  href="{{ route('departments.index') }}" :current="request()->routeIs('departments.*')" wire:navigate>{{ __('Departments') }}</flux:navlist.item>
-                @can('departments.manage')
-                <flux:navlist.group expandable  heading="Departments" class="hidden lg:grid">
-                  <flux:navlist.item href="{{route('departments.create')}}">Create manually</flux:navlist.item>
-              </flux:navlist.group>
-                @endcan
-                @endcan
-
-                @can('schools.view')
-              <flux:navlist.item icon="academic-cap"  href="{{ route('schools.index') }}" :current="request()->routeIs('schools.*')" wire:navigate>{{ __('Schools') }}</flux:navlist.item>
-                @can('schools.manage')
-                <flux:navlist.group expandable  heading="Schools" class="hidden lg:grid">
-                  <flux:navlist.item href="{{route('schools.create')}}">Create manually</flux:navlist.item>
-              </flux:navlist.group>
-                @endcan
-                @endcan
-                @can('students.view_all')
-                    <flux:navlist.item icon="chart-bar-square" href="{{ url('absences') }}">Absences</flux:navlist.item>
-                @endcan
-
-                @can('health_records.view')
-                    <flux:navlist.item icon="heart" href="{{ route('health-records.index') }}">Health records</flux:navlist.item>
-                @endcan
-
-                @can('health_records.manage')
-                    <flux:navlist.group expandable heading="Health records" class="hidden lg:grid">
-                        <flux:navlist.item href="{{ route('health-records.create') }}">Create record</flux:navlist.item>
-                    </flux:navlist.group>
-                @endcan
-
-                @can('subjects.view')
-                    <flux:navlist.item icon="book-open-text" href="{{ route('subjects.index') }}" :current="request()->routeIs('subjects.*')" wire:navigate>{{ __('Subjects') }}</flux:navlist.item>
-                @endcan
-
-                @can('academic_years.view')
-                    <flux:navlist.item icon="calendar-days" href="{{ route('academic-years.index') }}" :current="request()->routeIs('academic-years.*')" wire:navigate>{{ __('Academic Years') }}</flux:navlist.item>
-                @endcan
-
-                @can('semesters.view')
-                    <flux:navlist.item icon="rectangle-group" href="{{ route('semesters.index') }}" :current="request()->routeIs('semesters.*')" wire:navigate>{{ __('Semesters') }}</flux:navlist.item>
-                @endcan
-
-                @canany(['teaching_assignments.view_all', 'teaching_assignments.view_own'])
-                    <flux:navlist.item icon="folder-git-2" href="{{ route('teaching-assignments.index') }}" :current="request()->routeIs('teaching-assignments.*')" wire:navigate>{{ auth()->user()->isProfessor() ? __('My Teaching Assignments') : __('Teaching Assignments') }}</flux:navlist.item>
-                @endcanany
-
-                @canany(['grades.view_all', 'grades.view_assigned', 'grades.view_own'])
-                    <flux:navlist.item icon="book-open-text" href="{{ auth()->user()->isStudentUser() && auth()->user()->student_id ? route('student-grades.results', auth()->user()->student_id) : route('student-grades.index') }}" :current="request()->routeIs('student-grades.*')" wire:navigate>{{ auth()->user()->isStudentUser() ? __('My Results') : __('Grades / Results') }}</flux:navlist.item>
-                @endcanany
             </flux:navlist>
 
             <flux:spacer />
@@ -104,7 +95,7 @@
                 <img src="{{ asset('images/school-campus.svg') }}" alt="School campus" class="h-24 w-full object-cover">
                 <div class="p-3">
                     <p class="text-xs font-medium text-teal-900 dark:text-teal-100">Real-time academic records</p>
-                    <p class="mt-1 text-xs text-teal-800/70 dark:text-zinc-300">Students, grades, absences, and health data in one workspace.</p>
+                    <p class="mt-1 text-xs text-teal-800/70 dark:text-zinc-300">Students, grades, attendance, and health data in one workspace.</p>
                 </div>
             </div>
 
@@ -140,7 +131,7 @@
                     <flux:menu.separator />
 
                     <flux:menu.radio.group>
-                        <flux:menu.item href="/settings/profile" icon="cog" wire:navigate>{{ __('Settings') }}</flux:menu.item>
+                        <flux:menu.item href="{{ route('settings.profile') }}" icon="cog" wire:navigate>{{ __('Settings') }}</flux:menu.item>
                     </flux:menu.radio.group>
 
                     <flux:menu.separator />
@@ -190,7 +181,7 @@
                     <flux:menu.separator />
 
                     <flux:menu.radio.group>
-                        <flux:menu.item href="/settings/profile" icon="cog" wire:navigate>Settings</flux:menu.item>
+                        <flux:menu.item href="{{ route('settings.profile') }}" icon="cog" wire:navigate>Settings</flux:menu.item>
                     </flux:menu.radio.group>
 
                     <flux:menu.separator />

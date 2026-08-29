@@ -5,9 +5,9 @@
             <div class="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/75 to-zinc-950/20"></div>
             <div class="relative grid min-h-[320px] gap-8 p-6 sm:p-8 lg:grid-cols-[1.2fr_.8fr] lg:p-10">
                 <div class="flex max-w-2xl flex-col justify-center">
-                    <span class="mb-4 w-fit rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-teal-100">Academic year 2024-2025</span>
+                    <span class="mb-4 w-fit rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-teal-100">Academic overview</span>
                     <h1 class="text-3xl font-semibold tracking-tight sm:text-5xl">School management, with every record in reach.</h1>
-                    <p class="mt-4 max-w-xl text-sm leading-6 text-zinc-200 sm:text-base">Track students, classrooms, departments, health records, absences, and grades from one focused dashboard.</p>
+                    <p class="mt-4 max-w-xl text-sm leading-6 text-zinc-200 sm:text-base">Track students, classrooms, departments, health records, attendance, and grades from one focused dashboard.</p>
                     <div class="mt-6 flex flex-wrap gap-3">
                         <flux:button href="{{ route('students.index') }}" icon="user" variant="primary" wire:navigate>View students</flux:button>
                         @can('students.create')
@@ -17,7 +17,7 @@
                 </div>
                 <div class="hidden items-end justify-end lg:flex">
                     <div class="w-full max-w-sm rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur">
-                        <p class="text-sm font-medium text-teal-100">Today overview</p>
+                        <p class="text-sm font-medium text-teal-100">Current overview</p>
                         <div class="mt-4 grid grid-cols-2 gap-3">
                             <div class="rounded-xl bg-white/15 p-4">
                                 <p class="text-xs text-zinc-300">Students</p>
@@ -48,7 +48,7 @@
                     <span class="rounded-lg bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700 dark:bg-teal-400/10 dark:text-teal-200">Active</span>
                 </div>
                 <p class="mt-4 text-4xl font-semibold text-zinc-950 dark:text-white">{{ $totalStudents }}</p>
-                <flux:text class="mt-2">All student records for 2024-2025</flux:text>
+                <flux:text class="mt-2">Student records in your authorized scope</flux:text>
             </div>
             <div class="rounded-2xl border border-blue-900/10 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-900">
                 <div class="flex items-center justify-between">
@@ -76,6 +76,52 @@
             </div>
         </div>
 
+        @if($canViewAttendanceReporting)
+            <section class="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-900">
+                <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+                    <div>
+                        <flux:heading size="lg">Attendance Summary</flux:heading>
+                        <flux:text class="mt-1">Counts come from recorded daily attendance in the selected academic context.</flux:text>
+                    </div>
+                    <form method="GET" action="{{ route('dashboard') }}" class="grid gap-3 sm:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_auto] sm:items-end">
+                        <label class="grid gap-1 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                            Academic Year
+                            <select name="attendance_academic_year_id" class="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950">
+                                @foreach($attendanceAcademicYears as $academicYear)
+                                    <option value="{{ $academicYear->id }}" @selected($selectedAttendanceYear?->is($academicYear))>{{ $academicYear->name }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="grid gap-1 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                            Classroom
+                            <select name="attendance_classroom_id" class="rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950">
+                                <option value="">All authorized classrooms</option>
+                                @foreach($attendanceClassrooms as $classroom)
+                                    <option value="{{ $classroom->id }}" @selected($selectedAttendanceClassroom?->is($classroom))>{{ $classroom->name }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <flux:button type="submit" variant="primary">Apply</flux:button>
+                    </form>
+                </div>
+
+                <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    @foreach ([
+                        'present' => 'Present',
+                        'absent' => 'Absent',
+                        'late' => 'Late',
+                        'excused' => 'Excused',
+                        'recorded' => 'Recorded Days',
+                    ] as $key => $label)
+                        <div class="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-700 dark:bg-zinc-800/60" data-attendance-metric="{{ $key }}">
+                            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ $label }}</p>
+                            <p class="mt-2 text-3xl font-semibold text-zinc-950 dark:text-white">{{ $attendanceSummary[$key] }}</p>
+                        </div>
+                    @endforeach
+                </div>
+            </section>
+        @endif
+
         <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900">
                 <div class="border-b border-zinc-100 p-5 dark:border-white/10">
@@ -86,15 +132,17 @@
                     <x-students-by-classroom-chart />
                 </div>
             </div>
-            <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900">
-                <div class="border-b border-zinc-100 p-5 dark:border-white/10">
-                    <flux:heading>Absence Days by Classroom</flux:heading>
-                    <flux:text class="mt-1">Attendance risk visible by class.</flux:text>
+            @if($canViewAttendanceReporting)
+                <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900">
+                    <div class="border-b border-zinc-100 p-5 dark:border-white/10">
+                        <flux:heading>Recorded Absences by Classroom</flux:heading>
+                        <flux:text class="mt-1">Daily absent records for the selected academic context.</flux:text>
+                    </div>
+                    <div class="p-4">
+                        <x-absences-chart :academic-year="$selectedAttendanceYear" :classroom="$selectedAttendanceClassroom" />
+                    </div>
                 </div>
-                <div class="p-4">
-                    <x-absences-chart />
-                </div>
-            </div>
+            @endif
         </div>
 
         <section class="grid gap-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900 lg:grid-cols-[.9fr_1.1fr]">
@@ -106,7 +154,7 @@
 
         <div class="flex items-end justify-between gap-4">
             <div>
-                <h2 class="text-2xl font-semibold text-zinc-950 dark:text-white">Student grade charts</h2>
+                <flux:heading size="lg">Student Grade Charts</flux:heading>
                 <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Semester averages help spot progress and support needs early.</p>
             </div>
         </div>

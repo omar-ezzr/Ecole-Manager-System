@@ -5,23 +5,30 @@
                 <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                     <div>
                         <flux:heading level="1" size="xl">Students</flux:heading>
-                        <flux:text class="mt-2">Student records, contact details, class placement, and semester grades.</flux:text>
+                        <flux:text class="mt-2">Manage student records, enrollment information, and academic context.</flux:text>
                     </div>
-                    @can('students.create')
-                        <div class="flex flex-wrap gap-2">
+                    <div class="flex flex-wrap gap-2">
+                        @can('students.create')
                             <flux:button href="{{ route('students.create') }}" icon="plus" variant="primary" wire:navigate>Add student</flux:button>
+                        @endcan
+                        @can('students.import')
                             <flux:button href="{{ route('templates.students') }}" icon="arrow-down-tray">Template</flux:button>
-                        </div>
-                    @endcan
+                        @endcan
+                    </div>
                 </div>
 
                 <form method="GET" action="{{ route('students.index') }}" class="mt-6">
-                    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                        <input type="text" name="last_name" placeholder="Last name" value="{{ request('last_name') }}" class="rounded-xl border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500 dark:border-white/10 dark:bg-zinc-950" />
-                        <input type="text" name="first_name" placeholder="First name" value="{{ request('first_name') }}" class="rounded-xl border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500 dark:border-white/10 dark:bg-zinc-950" />
-                        <input type="text" name="student_number" placeholder="Student ID" value="{{ request('student_number') }}" class="rounded-xl border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500 dark:border-white/10 dark:bg-zinc-950" />
-                        <input type="text" name="classroom_id" placeholder="Class" value="{{ request('classroom_id') }}" class="rounded-xl border-zinc-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-teal-500 focus:ring-teal-500 dark:border-white/10 dark:bg-zinc-950" />
-                        <flux:button type="submit" icon="magnifying-glass" variant="primary">Search</flux:button>
+                    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto] xl:items-end">
+                        <flux:input label="Last name" name="last_name" value="{{ request('last_name') }}" />
+                        <flux:input label="First name" name="first_name" value="{{ request('first_name') }}" />
+                        <flux:input label="Student ID" name="student_number" value="{{ request('student_number') }}" />
+                        <flux:input label="Classroom ID" type="number" min="1" name="classroom_id" value="{{ request('classroom_id') }}" />
+                        <div class="flex flex-wrap gap-2">
+                            <flux:button type="submit" icon="magnifying-glass" variant="primary">Search</flux:button>
+                            @if(request()->hasAny(['last_name', 'first_name', 'student_number', 'classroom_id']))
+                                <flux:button href="{{ route('students.index') }}" variant="ghost">Clear</flux:button>
+                            @endif
+                        </div>
                     </div>
                 </form>
             </div>
@@ -50,7 +57,7 @@
                             @foreach ([1, 2, 3, 4, 5, 6] as $position)
                                 <th scope="col" class="px-5 py-4 text-center">S{{ $position }}</th>
                             @endforeach
-                            <th scope="col" class="px-5 py-4 text-right">Action</th>
+                            <th scope="col" class="px-5 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-100 dark:divide-white/10">
@@ -68,11 +75,11 @@
                                     </a>
                                 </th>
                                 <td class="px-5 py-4">{{ $student['student_number'] }}</td>
-                                <td class="px-5 py-4"><span class="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-400/10 dark:text-blue-200">{{ $student['classroom_id'] }}</span></td>
-                                <td class="px-5 py-4">{{ $student['city'] }}</td>
-                                <td class="px-5 py-4">{{ $student['phone'] }}</td>
-                                <td class="px-5 py-4">{{ $student['email'] }}</td>
-                                <td class="px-5 py-4">{{ $student['education_level'] }}</td>
+                                <td class="px-5 py-4"><span class="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-400/10 dark:text-blue-200">{{ $student->classroom?->name ?? '—' }}</span></td>
+                                <td class="px-5 py-4">{{ $student['city'] ?: '—' }}</td>
+                                <td class="px-5 py-4">{{ $student['phone'] ?: '—' }}</td>
+                                <td class="px-5 py-4">{{ $student['email'] ?: '—' }}</td>
+                                <td class="px-5 py-4">{{ $student['education_level'] ?: '—' }}</td>
                                 @foreach ([1, 2, 3, 4, 5, 6] as $position)
                                     <td class="px-5 py-4 text-center font-medium text-zinc-950 dark:text-white">
                                         {{ $canViewSemesterAverages ? (optional($student->semesterAverages->first(fn ($grade) => $grade->semester?->sequence === $position))->grade ?? 0) : '—' }}
@@ -80,12 +87,12 @@
                                 @endforeach
                                 <td class="px-5 py-4 text-right">
                                     <flux:dropdown>
-                                        <flux:button icon:trailing="chevron-down">Options</flux:button>
+                                        <flux:button icon:trailing="chevron-down">Actions</flux:button>
                                         <flux:menu>
                                             @can('students.update')
-                                                <flux:menu.item href="{{ route('students.edit', $student->id) }}" icon="bars-2">Edit</flux:menu.item>
+                                                <flux:menu.item href="{{ route('students.edit', $student->id) }}" icon="pencil-square">Edit</flux:menu.item>
                                             @endcan
-                                            <flux:menu.item href="{{ route('students.show', $student->id) }}" icon="eye">Show</flux:menu.item>
+                                            <flux:menu.item href="{{ route('students.show', $student->id) }}" icon="eye">View</flux:menu.item>
                                             @can('students.delete')
                                                 <flux:menu.separator />
                                                 <flux:modal.trigger name="delete-student-{{ $student->id }}">
@@ -100,17 +107,19 @@
                         @empty
                             <tr>
                                 <td colspan="14" class="px-5 py-16 text-center">
-                                    <p class="font-medium text-zinc-950 dark:text-white">No students found</p>
-                                    <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Try changing the search filters.</p>
+                                    <p class="font-medium text-zinc-950 dark:text-white">No students found.</p>
+                                    <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Try changing the filters or add a student if you have permission.</p>
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            <div class="border-t border-zinc-100 p-4 dark:border-white/10">
-                {{ $students->links() }}
-            </div>
+            @if($students->hasPages())
+                <div class="border-t border-zinc-100 p-4 dark:border-white/10">
+                    {{ $students->links() }}
+                </div>
+            @endif
         </div>
 
         @can('students.delete')
@@ -132,7 +141,7 @@
                             <flux:modal.close>
                                 <flux:button type="button" variant="ghost">Cancel</flux:button>
                             </flux:modal.close>
-                            <flux:button type="submit" variant="danger">Delete Student</flux:button>
+                            <flux:button type="submit" variant="danger">Delete student</flux:button>
                         </div>
                     </form>
                 </flux:modal>

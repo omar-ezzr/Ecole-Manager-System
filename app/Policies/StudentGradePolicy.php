@@ -61,7 +61,10 @@ class StudentGradePolicy
         }
 
         return $teachingAssignment->professor_id === $user->id
-            && $teachingAssignment->classroom_id === $student->classroom_id
+            && $student->hasEnrollmentFor(
+                $teachingAssignment->classroom_id,
+                $teachingAssignment->academic_year_id
+            )
             && $semester->academic_year_id === $teachingAssignment->academic_year_id
             && $teachingAssignment->subject?->is_active === true;
     }
@@ -101,7 +104,10 @@ class StudentGradePolicy
         $assignment = $studentGrade->teachingAssignment;
 
         return $assignment?->professor_id === $user->id
-            && $assignment->classroom_id === $studentGrade->student?->classroom_id
+            && $studentGrade->student?->hasEnrollmentFor(
+                $assignment->classroom_id,
+                $assignment->academic_year_id
+            ) === true
             && $assignment->academic_year_id === $studentGrade->semester?->academic_year_id
             && $assignment->subject_id === $studentGrade->subject_id;
     }

@@ -24,11 +24,13 @@ School
 └── Department
     └── Classroom
         └── Student
+            ├── StudentEnrollment
+            │   └── AttendanceRecord
             ├── StudentGrade
             └── HealthRecord
 ```
 
-`Absence` is not implemented as a separate entity. Attendance is currently represented by `students.absences_count`.
+Daily attendance reporting is derived from `attendance_records` through each historical `StudentEnrollment`. The retired `students.absences_count` column is removed by a corrective migration; older workbook headers remain accepted but their values are ignored.
 
 ## Implemented Models
 
@@ -36,6 +38,8 @@ School
 - `Department`
 - `Classroom`
 - `Student`
+- `StudentEnrollment`
+- `AttendanceRecord`
 - `StudentGrade`
 - `HealthRecord`
 - `Semester`
@@ -48,7 +52,7 @@ School
 - Authentication, registration, email verification, password reset, and user settings.
 - Role and permission enforcement with Spatie permissions, middleware, policies, controller authorization, and Blade checks.
 - CRUD screens for schools, departments, classrooms, students, health records, and administrative users.
-- Dashboard cards and Chart.js visualizations for students, classrooms, schools, departments, semester averages, and absences.
+- Dashboard cards and Chart.js visualizations for students, classrooms, schools, departments, semester averages, and recorded attendance.
 - Excel imports for students, health records, and semester averages.
 - Downloadable tracked Excel templates from `resources/templates`.
 - QR code generation for student details.
@@ -129,6 +133,10 @@ Current hierarchy keys:
 - `departments.school_id`
 - `classrooms.department_id`
 - `students.classroom_id`
+- `student_enrollments.student_id`
+- `student_enrollments.classroom_id`
+- `student_enrollments.academic_year_id`
+- `attendance_records.student_enrollment_id`
 - `student_grades.student_id`
 - `health_records.student_id`
 
@@ -235,6 +243,6 @@ Automated tests use SQLite in memory through `phpunit.xml`.
 
 ## Known Limitations
 
-- There is no dedicated `Absence` model or table yet.
+- Attendance is daily per enrollment; timetable sessions, required school days, and attendance percentages are not modeled.
 - Grade management is not exposed as a standalone public resource; it currently flows through student create/update and import paths.
 - Some repository-root stray files such as `er->getRoleNames();`, `er->name;`, and `name` are present and appear unrelated to the active app.

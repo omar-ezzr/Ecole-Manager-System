@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AcademicYearController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\ClassroomController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
@@ -93,6 +94,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:'.P::TEACHING_ASSIGNMENTS_MANAGE);
     Route::resource('teaching-assignments', TeachingAssignmentController::class)->only(['index', 'show'])
         ->middleware('permission:'.P::TEACHING_ASSIGNMENTS_VIEW_ALL.'|'.P::TEACHING_ASSIGNMENTS_VIEW_OWN);
+    Route::get('teaching-assignments/{teaching_assignment}/attendance', [AttendanceController::class, 'index'])
+        ->middleware('permission:'.P::ATTENDANCE_VIEW_ALL.'|'.P::ATTENDANCE_VIEW_ASSIGNED)
+        ->name('teaching-assignments.attendance.index');
+    Route::post('teaching-assignments/{teaching_assignment}/attendance', [AttendanceController::class, 'store'])
+        ->middleware('permission:'.P::ATTENDANCE_MANAGE_ALL.'|'.P::ATTENDANCE_MANAGE_ASSIGNED)
+        ->name('teaching-assignments.attendance.store');
 
     Route::resource('student-grades', StudentGradeController::class)->only(['index'])
         ->middleware('permission:'.P::GRADES_ALL.'|'.P::GRADES_ASSIGNED.'|'.P::GRADES_OWN);
@@ -128,7 +135,11 @@ Route::middleware(['auth', 'verified', 'permission:'.P::STUDENTS_IMPORT])->group
 
 Route::get('/absences', function () {
     return view('charts.absences');
-})->middleware(['auth', 'verified', 'permission:'.P::STUDENTS_ALL]);
+})->middleware([
+    'auth',
+    'verified',
+    'permission:'.P::ATTENDANCE_VIEW_ALL.'|'.P::ATTENDANCE_VIEW_ASSIGNED,
+]);
 
 // Mount the Livewire component inside dashboard (Livewire handles it automatically)
 Route::middleware(['auth'])->group(function () {

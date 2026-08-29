@@ -1,6 +1,6 @@
 <div>
     <div class="container">
-        <canvas id="studentSemesterGrades"></canvas>
+        <canvas id="studentSemesterGrades" role="img" aria-label="Student semester grades chart"></canvas>
     </div>
 
     <script>

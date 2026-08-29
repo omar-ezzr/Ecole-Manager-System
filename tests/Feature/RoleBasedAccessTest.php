@@ -55,7 +55,8 @@ class RoleBasedAccessTest extends TestCase
             ->get(route('administration.users.index'))
             ->assertOk()
             ->assertSee('User administration')
-            ->assertSee('Create user');
+            ->assertSee('Add User')
+            ->assertSee('Administration');
     }
 
     public function test_operational_administrator_sees_spatie_roles_in_user_form(): void
@@ -158,6 +159,7 @@ class RoleBasedAccessTest extends TestCase
             ->assertSee('Departments')
             ->assertSee('Schools')
             ->assertSee('Health records')
+            ->assertSee('Attendance reports')
             ->assertDontSee('User administration')
             ->assertDontSee('Create manually')
             ->assertDontSee('Create record')
@@ -230,6 +232,9 @@ class RoleBasedAccessTest extends TestCase
             ->assertOk()
             ->assertSee($assignedStudent->student_number)
             ->assertDontSee($otherStudent->student_number)
+            ->assertSee('My Teaching Assignments')
+            ->assertSee('Attendance reports')
+            ->assertDontSee('User administration')
             ->assertDontSee('Add student')
             ->assertDontSee('Delete Student');
 
@@ -311,6 +316,9 @@ class RoleBasedAccessTest extends TestCase
         $this->actingAs($secretary)
             ->get(route('students.index'))
             ->assertOk()
+            ->assertSee('Teaching Assignments')
+            ->assertDontSee('Attendance reports')
+            ->assertDontSee('User administration')
             ->assertDontSee('Add student')
             ->assertDontSee('Delete Student');
     }

@@ -6,6 +6,7 @@ use App\Models\AcademicYear;
 use App\Models\Classroom;
 use App\Models\Role;
 use App\Models\Semester;
+use App\Models\Student;
 use App\Models\StudentGrade;
 use App\Models\Subject;
 use App\Models\TeachingAssignment;
@@ -93,8 +94,17 @@ class TeachingAssignmentController extends Controller
             'subject',
             'academicYear',
             'classroom.department.school',
-            'classroom.students' => fn ($students) => $students->orderBy('student_number'),
         ]);
+
+        $students = Student::query()
+            ->whereHas('enrollments', fn ($enrollments) => $enrollments
+                ->where('classroom_id', $teachingAssignment->classroom_id)
+                ->where('academic_year_id', $teachingAssignment->academic_year_id))
+            ->with(['enrollments' => fn ($enrollments) => $enrollments
+                ->where('classroom_id', $teachingAssignment->classroom_id)
+                ->where('academic_year_id', $teachingAssignment->academic_year_id)])
+            ->orderBy('student_number')
+            ->get();
 
         $semesters = Semester::query()
             ->where('academic_year_id', $teachingAssignment->academic_year_id)
@@ -111,11 +121,12 @@ class TeachingAssignmentController extends Controller
             $existingGrades = StudentGrade::query()
                 ->where('teaching_assignment_id', $teachingAssignment->id)
                 ->where('semester_id', $selectedSemester->id)
+                ->whereIn('student_id', $students->modelKeys())
                 ->get()
                 ->keyBy('student_id');
         }
 
-        $firstStudent = $teachingAssignment->classroom->students->first();
+        $firstStudent = $students->first();
         $canManageGrades = $selectedSemester
             && $firstStudent
             && $request->user()->can('createForAssignment', [
@@ -129,6 +140,7 @@ class TeachingAssignmentController extends Controller
             'assignment' => $teachingAssignment,
             'semesters' => $semesters,
             'selectedSemester' => $selectedSemester,
+            'students' => $students,
             'existingGrades' => $existingGrades,
             'canManageGrades' => $canManageGrades,
         ]);

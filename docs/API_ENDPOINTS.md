@@ -14,7 +14,7 @@ The active application is a Laravel 12 Blade/Livewire web app with a small Sanct
 | Resource | `/schools` | `SchoolController` | School permissions plus `SchoolPolicy` |
 | Resource | `/health-records` | `HealthRecordController` | Health-record permissions plus `HealthRecordPolicy` |
 | Resource | `/administration/users` | `UserController` | User permissions plus `UserPolicy` |
-| GET | `/absences` | Closure view | `students.view_all` |
+| GET | `/absences` | Closure view | `attendance.view_all` or `attendance.view_assigned` |
 
 ## Import Routes
 

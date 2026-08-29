@@ -64,9 +64,7 @@ class ExcelImportReader
         'type' => 'type',
     ];
 
-    public function __construct(private readonly UploadedFile|string $file)
-    {
-    }
+    public function __construct(private readonly UploadedFile|string $file) {}
 
     public static function fromUploadedFile(UploadedFile $file): self
     {
@@ -97,6 +95,7 @@ class ExcelImportReader
 
             if ($rowIndex === 1) {
                 $headers = $this->headersFromValues($values);
+
                 continue;
             }
 

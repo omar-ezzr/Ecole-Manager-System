@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\AcademicYear;
 use App\Models\Classroom;
 use App\Models\Student;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 class DemoStudentSeeder extends Seeder
 {
@@ -16,28 +18,38 @@ class DemoStudentSeeder extends Seeder
             return;
         }
 
+        $academicYear = AcademicYear::active()->first();
+
+        if (! $academicYear) {
+            throw new RuntimeException('Cannot seed students because no academic year is active.');
+        }
+
         foreach ($this->students() as $index => $student) {
             $classroom = $classrooms[$index % $classrooms->count()];
 
-            Student::updateOrCreate(
-                ['student_number' => $student['student_number']],
-                [
-                    'classroom_id' => $classroom->id,
-                    'first_name' => $student['first_name'],
-                    'last_name' => $student['last_name'],
-                    'phone' => $student['phone'],
-                    'email' => $student['email'],
-                    'diploma' => $student['diploma'],
-                    'city' => $student['city'],
-                    'address' => $student['address'],
-                    'education_level' => $student['education_level'],
-                    'height' => $student['height'],
-                    'weight' => $student['weight'],
-                    'appreciation_score' => $student['appreciation_score'],
-                    'absences_count' => $student['absences_count'],
-                    'appreciation' => $student['appreciation'],
-                ]
-            );
+            $attributes = [
+                'student_number' => $student['student_number'],
+                'classroom_id' => $classroom->id,
+                'first_name' => $student['first_name'],
+                'last_name' => $student['last_name'],
+                'phone' => $student['phone'],
+                'email' => $student['email'],
+                'diploma' => $student['diploma'],
+                'city' => $student['city'],
+                'address' => $student['address'],
+                'education_level' => $student['education_level'],
+                'height' => $student['height'],
+                'weight' => $student['weight'],
+                'appreciation_score' => $student['appreciation_score'],
+                'appreciation' => $student['appreciation'],
+            ];
+            $existingStudent = Student::where('student_number', $student['student_number'])->first();
+
+            if ($existingStudent) {
+                $existingStudent->updateWithEnrollment($attributes, $academicYear);
+            } else {
+                Student::createWithEnrollment($attributes, $academicYear);
+            }
         }
     }
 
@@ -67,7 +79,6 @@ class DemoStudentSeeder extends Seeder
                 'height' => 160 + ($index % 22),
                 'weight' => 55 + ($index % 18),
                 'appreciation_score' => round(12 + ($index % 8) + (($index % 3) * 0.25), 2),
-                'absences_count' => $index % 7,
                 'appreciation' => $index % 4 === 0
                     ? 'Needs regular follow-up on attendance.'
                     : 'Good progress and active participation.',

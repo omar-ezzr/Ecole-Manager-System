@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicYear;
+use App\Models\AttendanceRecord;
 use App\Models\Semester;
 use App\Models\Student;
 use App\Models\StudentGrade;
@@ -10,6 +11,7 @@ use App\Models\User;
 use App\Support\SchoolPermissions as P;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class StudentController extends Controller
@@ -22,7 +24,7 @@ class StudentController extends Controller
             return $this->redirectWaitingForStudentAssignment();
         }
 
-        $query = Student::visibleTo($request->user());
+        $query = Student::visibleTo($request->user())->with('classroom');
 
         if ($request->filled('last_name')) {
             $query->where('last_name', 'like', '%'.$request->last_name.'%');
@@ -42,12 +44,18 @@ class StudentController extends Controller
 
         $canViewSemesterAverages = ! $request->user()->isProfessor()
             && $request->user()->canAny([P::GRADES_ALL, P::GRADES_OWN]);
+        $activeAcademicYearId = AcademicYear::active()->value('id');
         $students = $query
-            ->when($canViewSemesterAverages, fn ($students) => $students->with('semesterAverages.semester'))
+            ->when($canViewSemesterAverages, fn ($students) => $students->with([
+                'semesterAverages' => fn ($grades) => $grades->whereHas(
+                    'semester',
+                    fn ($semesters) => $semesters->where('academic_year_id', $activeAcademicYearId ?? 0)
+                )->with('semester'),
+            ]))
             ->orderBy('student_number')
             ->paginate(30)
             ->withQueryString();
-        $semesterIds = Semester::where('academic_year_id', AcademicYear::active()->value('id'))->orderBy('sequence')->pluck('id', 'sequence');
+        $semesterIds = Semester::where('academic_year_id', $activeAcademicYearId)->orderBy('sequence')->pluck('id', 'sequence');
 
         return view('students.index', compact('students', 'semesterIds', 'canViewSemesterAverages'));
     }
@@ -64,7 +72,7 @@ class StudentController extends Controller
         $this->authorize('create', Student::class);
 
         $validated = $this->validatedStudent($request);
-        $student = Student::create($validated);
+        $student = Student::createWithEnrollment($validated, $this->activeAcademicYear());
         $this->syncSemesterGrades($student, $request);
 
         return redirect()->route('students.index');
@@ -78,12 +86,20 @@ class StudentController extends Controller
 
         $student = Student::findOrFail($id);
         $this->authorize('view', $student);
+        $student->load([
+            'classroom',
+            'enrollments' => fn ($enrollments) => $enrollments
+                ->with(['academicYear', 'classroom'])
+                ->orderByDesc('enrolled_at')
+                ->orderByDesc('id'),
+        ]);
         $canViewHealthRecords = $request->user()->can(P::HEALTH_VIEW);
         $canViewSemesterAverages = ! $request->user()->isProfessor()
             && $request->user()->canAny([P::GRADES_ALL, P::GRADES_OWN]);
         $healthRecords = $canViewHealthRecords
             ? $student->healthRecords()->orderByDesc('date')->get()
             : collect();
+        $attendanceContext = $this->attendanceSummaryContext($request, $student);
         $data = [
             'name' => $student->last_name,
             'first_name' => $student->first_name,
@@ -94,21 +110,26 @@ class StudentController extends Controller
             'phone' => $student->phone,
             'height' => $student->height,
             'weight' => $student->weight,
-            'absences' => $student->absences_count,
         ];
 
-        return view('students.show', [
+        return view('students.show', array_merge([
             'student' => $student,
             'qrcode' => QrCode::size(300)->generate(json_encode($data)),
             'healthRecords' => $healthRecords,
             'canViewHealthRecords' => $canViewHealthRecords,
             'canViewSemesterAverages' => $canViewSemesterAverages,
-        ]);
+        ], $attendanceContext));
     }
 
     public function edit(string $id)
     {
-        $student = Student::with('semesterAverages.semester')->findOrFail($id);
+        $activeAcademicYearId = AcademicYear::active()->value('id');
+        $student = Student::with([
+            'semesterAverages' => fn ($grades) => $grades->whereHas(
+                'semester',
+                fn ($semesters) => $semesters->where('academic_year_id', $activeAcademicYearId ?? 0)
+            )->with('semester'),
+        ])->findOrFail($id);
         $this->authorize('update', $student);
 
         return view('students.edite', ['student' => $student, 'classrooms' => \App\Models\Classroom::orderBy('name')->get()]);
@@ -119,7 +140,7 @@ class StudentController extends Controller
         $student = Student::findOrFail($id);
         $this->authorize('update', $student);
         $validated = $this->validatedStudent($request, $student->id);
-        $student->update($validated);
+        $student->updateWithEnrollment($validated, $this->activeAcademicYear());
         $this->syncSemesterGrades($student, $request);
 
         return redirect()->route('students.index');
@@ -141,7 +162,17 @@ class StudentController extends Controller
             $studentNumberRule->ignore($ignoreId);
         }
 
-        $request->validate([
+        $semesterGradeRules = collect(range(1, 6))
+            ->mapWithKeys(fn (int $sequence) => [
+                'semester_'.$sequence => [
+                    'nullable',
+                    'numeric',
+                    'between:'.StudentGrade::MIN_GRADE.','.StudentGrade::MAX_GRADE,
+                ],
+            ])
+            ->all();
+
+        $request->validate(array_merge([
             'last_name' => ['required', 'string'],
             'first_name' => ['required', 'string'],
             'student_number' => ['required', $studentNumberRule, 'bail'],
@@ -155,8 +186,7 @@ class StudentController extends Controller
             'height' => ['required', 'integer', 'min:0'],
             'weight' => ['required', 'integer', 'min:0'],
             'appreciation_score' => ['nullable', 'numeric'],
-            'absences_count' => ['nullable', 'integer', 'min:0'],
-        ]);
+        ], $semesterGradeRules));
 
         return [
             'last_name' => strip_tags($request->input('last_name')),
@@ -172,7 +202,6 @@ class StudentController extends Controller
             'height' => strip_tags($request->input('height')),
             'weight' => strip_tags($request->input('weight')),
             'appreciation_score' => strip_tags($request->input('appreciation_score', 0)),
-            'absences_count' => strip_tags($request->input('absences_count', 0)),
             'appreciation' => strip_tags($request->input('appreciation')),
         ];
     }
@@ -200,6 +229,71 @@ class StudentController extends Controller
                 ['grade' => $value]
             );
         }
+    }
+
+    private function activeAcademicYear(): AcademicYear
+    {
+        $academicYear = AcademicYear::active()->first();
+
+        if (! $academicYear) {
+            throw ValidationException::withMessages([
+                'academic_year' => 'A current academic year must be active before managing student enrollment.',
+            ]);
+        }
+
+        return $academicYear;
+    }
+
+    /**
+     * @return array{
+     *     canViewAttendanceSummary: bool,
+     *     attendanceAcademicYears: \Illuminate\Support\Collection,
+     *     selectedAttendanceYear: ?AcademicYear,
+     *     attendanceSummary: ?array
+     * }
+     */
+    private function attendanceSummaryContext(Request $request, Student $student): array
+    {
+        $user = $request->user();
+        $canViewAttendanceSummary = $user->canAny([
+            P::ATTENDANCE_VIEW_ALL,
+            P::ATTENDANCE_VIEW_ASSIGNED,
+        ]);
+
+        if (! $canViewAttendanceSummary) {
+            abort_if($request->filled('attendance_academic_year_id'), 403);
+
+            return [
+                'canViewAttendanceSummary' => false,
+                'attendanceAcademicYears' => collect(),
+                'selectedAttendanceYear' => null,
+                'attendanceSummary' => null,
+            ];
+        }
+
+        $academicYears = AcademicYear::query()
+            ->reportableForAttendance($user)
+            ->orderByDesc('starts_at')
+            ->get();
+        $selectedYear = $request->filled('attendance_academic_year_id')
+            ? $academicYears->firstWhere('id', $request->integer('attendance_academic_year_id'))
+            : ($academicYears->firstWhere('is_active', true) ?? $academicYears->first());
+
+        abort_if($request->filled('attendance_academic_year_id') && ! $selectedYear, 403);
+
+        $summary = $selectedYear
+            ? AttendanceRecord::summarize(AttendanceRecord::query()
+                ->visibleTo($user)
+                ->forStudent($student)
+                ->forAcademicYear($selectedYear))
+            : AttendanceRecord::summarize(AttendanceRecord::query()->whereRaw('1 = 0'));
+
+        return [
+            'canViewAttendanceSummary' => true,
+            'attendanceAcademicYears' => $academicYears,
+            'selectedAttendanceYear' => $selectedYear,
+            'attendanceSummary' => $summary,
+        ];
     }
 
     private function studentAccountIsWaitingForAssignment(User $user): bool

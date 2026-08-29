@@ -34,6 +34,7 @@ class PermissionSeeder extends Seeder
             SchoolPermissions::SEMESTERS_VIEW,
             SchoolPermissions::TEACHING_ASSIGNMENTS_VIEW_ALL,
             SchoolPermissions::GRADES_ALL,
+            SchoolPermissions::ATTENDANCE_VIEW_ALL,
             SchoolPermissions::HEALTH_VIEW,
             SchoolPermissions::REPORTS_VIEW,
         ]));
@@ -61,6 +62,8 @@ class PermissionSeeder extends Seeder
             SchoolPermissions::TEACHING_ASSIGNMENTS_VIEW_OWN,
             SchoolPermissions::GRADES_ASSIGNED,
             SchoolPermissions::GRADES_MANAGE_ASSIGNED,
+            SchoolPermissions::ATTENDANCE_VIEW_ASSIGNED,
+            SchoolPermissions::ATTENDANCE_MANAGE_ASSIGNED,
         ]));
         $role(\App\Models\Role::ROLE_STUDENT)->syncPermissions($all->whereIn('name', [
             SchoolPermissions::DASHBOARD_SCOPED,

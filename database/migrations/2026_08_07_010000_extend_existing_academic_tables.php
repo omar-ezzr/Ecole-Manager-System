@@ -25,7 +25,7 @@ return new class extends Migration
 
         $activeAcademicYearId = DB::table('academic_years')->where('is_active', true)->value('id');
 
-        Schema::table('semesters', function (Blueprint $table) use ($activeAcademicYearId) {
+        Schema::table('semesters', function (Blueprint $table) {
             $table->dropUnique('semesters_code_unique');
             $table->dropUnique('semesters_position_unique');
             $table->foreignId('academic_year_id')->nullable()->after('id')->constrained()->restrictOnDelete();

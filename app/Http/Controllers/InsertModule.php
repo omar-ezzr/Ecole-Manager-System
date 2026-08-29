@@ -8,8 +8,8 @@ use App\Models\Semester;
 use App\Models\Student;
 use App\Models\StudentGrade;
 use App\Support\ExcelImportReader;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class InsertModule extends Controller
 {
@@ -27,6 +27,7 @@ class InsertModule extends Controller
         'height',
         'weight',
         'appreciation_score',
+        // Retired Student-import metadata must never be averaged into semester grades.
         'absences_count',
         'appreciation',
         'date',
@@ -63,6 +64,7 @@ class InsertModule extends Controller
                 if (! $student || ! $date || ! $type) {
                     $skipped++;
                     $errors[] = "Row {$rowNumber}: missing valid student number, date, or health record type.";
+
                     continue;
                 }
 
@@ -134,11 +136,19 @@ class InsertModule extends Controller
                 if (! $student || ($semester5 === null && $semester6 === null)) {
                     $skipped++;
                     $errors[] = "Row {$rowNumber}: missing valid student number or semester 5/6 grade.";
+
                     continue;
                 }
 
                 foreach ([5 => $semester5, 6 => $semester6] as $position => $grade) {
                     if ($grade === null) {
+                        continue;
+                    }
+
+                    if (! StudentGrade::isWithinRange($grade)) {
+                        $skipped++;
+                        $errors[] = "Row {$rowNumber}: semester {$position} grade must be between ".StudentGrade::MIN_GRADE.' and '.StudentGrade::MAX_GRADE.'.';
+
                         continue;
                     }
 
@@ -185,6 +195,14 @@ class InsertModule extends Controller
                 if (! $student || $average === null) {
                     $skipped++;
                     $errors[] = "Row {$rowNumber}: missing valid student number or numeric grade columns.";
+
+                    continue;
+                }
+
+                if (! StudentGrade::isWithinRange($average)) {
+                    $skipped++;
+                    $errors[] = "Row {$rowNumber}: semester {$semesterPosition} grade must be between ".StudentGrade::MIN_GRADE.' and '.StudentGrade::MAX_GRADE.'.';
+
                     continue;
                 }
 
@@ -193,6 +211,7 @@ class InsertModule extends Controller
                 if (! $gradeModel) {
                     $skipped++;
                     $errors[] = "Row {$rowNumber}: semester {$semesterPosition} is not configured.";
+
                     continue;
                 }
 
@@ -215,6 +234,10 @@ class InsertModule extends Controller
     private function saveSemesterGrade(Student $student, int $semesterPosition, float $grade): ?StudentGrade
     {
         $this->authorize('createForStudent', [StudentGrade::class, $student]);
+
+        if (! StudentGrade::isWithinRange($grade)) {
+            return null;
+        }
 
         $semester = Semester::where('academic_year_id', AcademicYear::active()->value('id'))
             ->where('sequence', $semesterPosition)

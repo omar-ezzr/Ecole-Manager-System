@@ -10,6 +10,7 @@ use App\Models\StudentGrade;
 use App\Support\ExcelImportReader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ImportController extends Controller
 {
@@ -34,8 +35,15 @@ class ImportController extends Controller
         $errors = [];
 
         $classrooms = Classroom::query()->pluck('id')->flip();
+        $academicYear = AcademicYear::active()->first();
 
-        DB::transaction(function () use ($reader, $rows, $classrooms, &$created, &$updated, &$skipped, &$errors): void {
+        if (! $academicYear) {
+            throw ValidationException::withMessages([
+                'excel_file' => 'A current academic year must be active before importing students.',
+            ]);
+        }
+
+        DB::transaction(function () use ($reader, $rows, $classrooms, $academicYear, &$created, &$updated, &$skipped, &$errors): void {
             foreach ($rows as $row) {
                 $rowNumber = $row['_row'] ?? '?';
                 $studentNumber = $reader->text($row, 'student_number');
@@ -47,37 +55,44 @@ class ImportController extends Controller
                 if (! $studentNumber || ! $firstName || ! $lastName) {
                     $skipped++;
                     $errors[] = "Row {$rowNumber}: missing student number, first name, or last name.";
+
                     continue;
                 }
 
                 if (! $classroomId) {
                     $skipped++;
                     $errors[] = "Row {$rowNumber}: invalid classroom_id '{$classroomReference}'. Use an existing numeric classroom ID.";
+
                     continue;
                 }
 
-                $student = Student::updateOrCreate(
-                    ['student_number' => $studentNumber],
-                    [
-                        'classroom_id' => $classroomId,
-                        'first_name' => $firstName,
-                        'last_name' => $lastName,
-                        'phone' => $reader->text($row, 'phone'),
-                        'email' => $reader->text($row, 'email'),
-                        'diploma' => $reader->text($row, 'diploma'),
-                        'city' => $reader->text($row, 'city'),
-                        'address' => $reader->text($row, 'address'),
-                        'education_level' => $reader->text($row, 'education_level'),
-                        'height' => $reader->integer($row, 'height'),
-                        'weight' => $reader->integer($row, 'weight'),
-                        'appreciation_score' => $reader->decimal($row, 'appreciation_score', 0),
-                        'absences_count' => $reader->integer($row, 'absences_count', 0),
-                        'appreciation' => $reader->text($row, 'appreciation'),
-                    ]
-                );
+                $attributes = [
+                    'student_number' => $studentNumber,
+                    'classroom_id' => $classroomId,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'phone' => $reader->text($row, 'phone'),
+                    'email' => $reader->text($row, 'email'),
+                    'diploma' => $reader->text($row, 'diploma'),
+                    'city' => $reader->text($row, 'city'),
+                    'address' => $reader->text($row, 'address'),
+                    'education_level' => $reader->text($row, 'education_level'),
+                    'height' => $reader->integer($row, 'height'),
+                    'weight' => $reader->integer($row, 'weight'),
+                    'appreciation_score' => $reader->decimal($row, 'appreciation_score', 0),
+                    'appreciation' => $reader->text($row, 'appreciation'),
+                ];
+                $student = Student::where('student_number', $studentNumber)->first();
 
-                $student->wasRecentlyCreated ? $created++ : $updated++;
-                $this->saveSemesterGrades($reader, $row, $student);
+                if ($student) {
+                    $student = $student->updateWithEnrollment($attributes, $academicYear);
+                    $updated++;
+                } else {
+                    $student = Student::createWithEnrollment($attributes, $academicYear);
+                    $created++;
+                }
+
+                $this->saveSemesterGrades($reader, $row, $student, $rowNumber, $errors);
             }
         });
 
@@ -97,12 +112,23 @@ class ImportController extends Controller
         return $classrooms->has($id) ? $id : null;
     }
 
-    private function saveSemesterGrades(ExcelImportReader $reader, array $row, Student $student): void
-    {
+    private function saveSemesterGrades(
+        ExcelImportReader $reader,
+        array $row,
+        Student $student,
+        int|string $rowNumber,
+        array &$errors
+    ): void {
         foreach ([1, 2, 3, 4, 5, 6] as $position) {
             $grade = $reader->decimal($row, 'semester_'.$position);
 
             if ($grade === null) {
+                continue;
+            }
+
+            if (! StudentGrade::isWithinRange($grade)) {
+                $errors[] = "Row {$rowNumber}: semester {$position} grade must be between ".StudentGrade::MIN_GRADE.' and '.StudentGrade::MAX_GRADE.'.';
+
                 continue;
             }
 

@@ -8,11 +8,38 @@ use App\Support\SchoolPermissions as P;
 
 class SchoolPolicy
 {
-    public function viewAny(User $user): bool { return $user->can(P::SCHOOLS_VIEW); }
-    public function view(User $user, School $school): bool { return $user->can(P::SCHOOLS_VIEW); }
-    public function create(User $user): bool { return $user->can(P::SCHOOLS_MANAGE); }
-    public function update(User $user, School $school): bool { return $user->can(P::SCHOOLS_MANAGE); }
-    public function delete(User $user, School $school): bool { return $user->can(P::SCHOOLS_MANAGE); }
-    public function restore(User $user, School $school): bool { return $user->can(P::SCHOOLS_MANAGE); }
-    public function forceDelete(User $user, School $school): bool { return $user->can(P::SCHOOLS_MANAGE); }
+    public function viewAny(User $user): bool
+    {
+        return $user->can(P::SCHOOLS_VIEW);
+    }
+
+    public function view(User $user, School $school): bool
+    {
+        return $user->can(P::SCHOOLS_VIEW);
+    }
+
+    public function create(User $user): bool
+    {
+        return $user->can(P::SCHOOLS_MANAGE);
+    }
+
+    public function update(User $user, School $school): bool
+    {
+        return $user->can(P::SCHOOLS_MANAGE);
+    }
+
+    public function delete(User $user, School $school): bool
+    {
+        return $user->can(P::SCHOOLS_MANAGE);
+    }
+
+    public function restore(User $user, School $school): bool
+    {
+        return $user->can(P::SCHOOLS_MANAGE);
+    }
+
+    public function forceDelete(User $user, School $school): bool
+    {
+        return $user->can(P::SCHOOLS_MANAGE);
+    }
 }

@@ -23,6 +23,11 @@ class ProfessorGradeManagementTest extends TestCase
     {
         [$assignment, $semester, $student, $professor] = $this->assignmentScenario();
 
+        $this->actingAs($professor)
+            ->get(route('teaching-assignments.show', $assignment))
+            ->assertOk()
+            ->assertSee('Save grades');
+
         $this->actingAs($professor)->post(route('student-grades.store'), [
             'teaching_assignment_id' => $assignment->id,
             'semester_id' => $semester->id,
@@ -64,6 +69,9 @@ class ProfessorGradeManagementTest extends TestCase
         [$assignment, $semester, $student] = $this->assignmentScenario();
         $otherProfessor = User::factory()->create();
         $otherProfessor->assignRole(Role::ROLE_PROFESSOR);
+        $grade = StudentGrade::factory()->forAssignment($assignment, $student, $semester)->create([
+            'grade' => 11,
+        ]);
 
         $this->actingAs($otherProfessor)->post(route('student-grades.store'), [
             'teaching_assignment_id' => $assignment->id,
@@ -76,9 +84,12 @@ class ProfessorGradeManagementTest extends TestCase
             ]],
         ])->assertForbidden();
 
-        $grade = StudentGrade::factory()->forAssignment($assignment, $student, $semester)->create();
-
         $this->assertFalse($otherProfessor->can('update', $grade));
+        $this->assertDatabaseHas('student_grades', [
+            'id' => $grade->id,
+            'teaching_assignment_id' => $assignment->id,
+            'grade' => 11,
+        ]);
     }
 
     public function test_professor_cannot_use_semester_from_another_academic_year(): void
@@ -89,7 +100,7 @@ class ProfessorGradeManagementTest extends TestCase
             'starts_at' => '2028-09-01',
             'ends_at' => '2029-07-31',
         ]);
-        $otherSemester = Semester::factory()->create([
+        $otherSemester = Semester::create([
             'academic_year_id' => $otherYear->id,
             'name' => 'Semester 1',
             'starts_at' => '2028-09-01',
@@ -122,6 +133,10 @@ class ProfessorGradeManagementTest extends TestCase
 
         foreach ([$director, $secretary] as $user) {
             $this->actingAs($user)->get(route('student-grades.results', $student))->assertOk();
+            $this->actingAs($user)
+                ->get(route('teaching-assignments.show', $assignment))
+                ->assertOk()
+                ->assertDontSee('Save grades');
             $this->actingAs($user)->post(route('student-grades.store'), [
                 'teaching_assignment_id' => $assignment->id,
                 'semester_id' => $semester->id,
@@ -170,6 +185,205 @@ class ProfessorGradeManagementTest extends TestCase
             ->firstOrFail();
 
         $this->assertTrue($admin->can('update', $grade));
+    }
+
+    public function test_professor_can_update_existing_grade_without_creating_a_duplicate(): void
+    {
+        [$assignment, $semester, $student, $professor] = $this->assignmentScenario();
+        $grade = StudentGrade::factory()->forAssignment($assignment, $student, $semester)->create([
+            'grade' => 10,
+            'coefficient' => 1,
+        ]);
+
+        $this->actingAs($professor)->post(route('student-grades.store'), [
+            'teaching_assignment_id' => $assignment->id,
+            'semester_id' => $semester->id,
+            'grades' => [[
+                'student_id' => $student->id,
+                'grade' => 17.25,
+                'type' => 'Final exam',
+                'coefficient' => 3,
+            ]],
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('student_grades', [
+            'id' => $grade->id,
+            'student_id' => $student->id,
+            'teaching_assignment_id' => $assignment->id,
+            'semester_id' => $semester->id,
+            'subject_id' => $assignment->subject_id,
+            'grade' => 17.25,
+            'type' => 'Final exam',
+            'coefficient' => 3,
+        ]);
+        $this->assertSame(1, StudentGrade::where('student_id', $student->id)
+            ->where('teaching_assignment_id', $assignment->id)
+            ->where('semester_id', $semester->id)
+            ->count());
+    }
+
+    public function test_professor_cannot_transfer_grade_to_another_professors_assignment(): void
+    {
+        [$assignment, $semester, $student, $professor] = $this->assignmentScenario();
+        $grade = StudentGrade::factory()->forAssignment($assignment, $student, $semester)->create([
+            'grade' => 12,
+        ]);
+        $otherProfessor = User::factory()->create();
+        $otherProfessor->assignRole(Role::ROLE_PROFESSOR);
+        $otherAssignment = TeachingAssignment::factory()->create([
+            'professor_id' => $otherProfessor->id,
+            'classroom_id' => $assignment->classroom_id,
+            'academic_year_id' => $assignment->academic_year_id,
+        ]);
+
+        $this->actingAs($professor)->post(route('student-grades.store'), [
+            'teaching_assignment_id' => $otherAssignment->id,
+            'semester_id' => $semester->id,
+            'grades' => [[
+                'student_id' => $student->id,
+                'grade' => 18,
+                'coefficient' => 1,
+            ]],
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('student_grades', [
+            'id' => $grade->id,
+            'teaching_assignment_id' => $assignment->id,
+            'grade' => 12,
+        ]);
+        $this->assertDatabaseMissing('student_grades', [
+            'student_id' => $student->id,
+            'teaching_assignment_id' => $otherAssignment->id,
+            'semester_id' => $semester->id,
+        ]);
+    }
+
+    public function test_professor_cannot_switch_existing_grade_to_student_in_unrelated_classroom(): void
+    {
+        [$assignment, $semester, $student, $professor] = $this->assignmentScenario();
+        $grade = StudentGrade::factory()->forAssignment($assignment, $student, $semester)->create([
+            'grade' => 13,
+        ]);
+        $otherStudent = Student::factory()->create([
+            'classroom_id' => Classroom::whereKeyNot($assignment->classroom_id)->firstOrFail()->id,
+        ]);
+
+        $this->actingAs($professor)->post(route('student-grades.store'), [
+            'teaching_assignment_id' => $assignment->id,
+            'semester_id' => $semester->id,
+            'grades' => [[
+                'student_id' => $otherStudent->id,
+                'grade' => 19,
+                'coefficient' => 1,
+            ]],
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('student_grades', [
+            'id' => $grade->id,
+            'student_id' => $student->id,
+            'grade' => 13,
+        ]);
+        $this->assertDatabaseMissing('student_grades', [
+            'student_id' => $otherStudent->id,
+            'teaching_assignment_id' => $assignment->id,
+        ]);
+    }
+
+    public function test_invalid_grade_range_and_zero_coefficient_are_rejected(): void
+    {
+        [$assignment, $semester, $student, $professor] = $this->assignmentScenario();
+
+        foreach ([-0.01, 20.01] as $invalidGrade) {
+            $this->actingAs($professor)->post(route('student-grades.store'), [
+                'teaching_assignment_id' => $assignment->id,
+                'semester_id' => $semester->id,
+                'grades' => [[
+                    'student_id' => $student->id,
+                    'grade' => $invalidGrade,
+                    'coefficient' => 1,
+                ]],
+            ])->assertSessionHasErrors('grades.0.grade');
+        }
+
+        $this->actingAs($professor)->post(route('student-grades.store'), [
+            'teaching_assignment_id' => $assignment->id,
+            'semester_id' => $semester->id,
+            'grades' => [[
+                'student_id' => $student->id,
+                'grade' => 15,
+                'coefficient' => 0,
+            ]],
+        ])->assertSessionHasErrors('grades.0.coefficient');
+
+        $this->assertDatabaseMissing('student_grades', [
+            'student_id' => $student->id,
+            'teaching_assignment_id' => $assignment->id,
+            'semester_id' => $semester->id,
+        ]);
+    }
+
+    public function test_nonexistent_assignment_is_rejected(): void
+    {
+        [, $semester, $student, $professor] = $this->assignmentScenario();
+
+        $this->actingAs($professor)->post(route('student-grades.store'), [
+            'teaching_assignment_id' => TeachingAssignment::max('id') + 1000,
+            'semester_id' => $semester->id,
+            'grades' => [[
+                'student_id' => $student->id,
+                'grade' => 15,
+                'coefficient' => 1,
+            ]],
+        ])->assertSessionHasErrors('teaching_assignment_id');
+    }
+
+    public function test_subject_bound_to_another_semester_is_rejected(): void
+    {
+        [$assignment, $semester, $student, $professor] = $this->assignmentScenario();
+        $otherSemester = Semester::where('academic_year_id', $assignment->academic_year_id)
+            ->whereKeyNot($semester->id)
+            ->firstOrFail();
+        $assignment->subject->update(['semester_id' => $otherSemester->id]);
+
+        $this->actingAs($professor)->post(route('student-grades.store'), [
+            'teaching_assignment_id' => $assignment->id,
+            'semester_id' => $semester->id,
+            'grades' => [[
+                'student_id' => $student->id,
+                'grade' => 15,
+                'coefficient' => 1,
+            ]],
+        ])->assertSessionHasErrors('semester_id');
+
+        $this->assertDatabaseMissing('student_grades', [
+            'student_id' => $student->id,
+            'teaching_assignment_id' => $assignment->id,
+            'semester_id' => $semester->id,
+        ]);
+    }
+
+    public function test_operational_administrator_cannot_bypass_grade_context_integrity(): void
+    {
+        [$assignment, $semester] = $this->assignmentScenario();
+        $otherStudent = Student::factory()->create([
+            'classroom_id' => Classroom::whereKeyNot($assignment->classroom_id)->firstOrFail()->id,
+        ]);
+        $admin = User::where('email', 'admin@gmail.com')->firstOrFail();
+
+        $this->actingAs($admin)->post(route('student-grades.store'), [
+            'teaching_assignment_id' => $assignment->id,
+            'semester_id' => $semester->id,
+            'grades' => [[
+                'student_id' => $otherStudent->id,
+                'grade' => 15,
+                'coefficient' => 1,
+            ]],
+        ])->assertSessionHasErrors('grades.0.student_id');
+
+        $this->assertDatabaseMissing('student_grades', [
+            'student_id' => $otherStudent->id,
+            'teaching_assignment_id' => $assignment->id,
+        ]);
     }
 
     public function test_professor_student_view_hides_health_records_and_unassigned_legacy_averages(): void

@@ -2,9 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Models\AcademicYear;
 use App\Models\Classroom;
 use App\Models\Student;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use RuntimeException;
 
 /**
  * @extends Factory<Student>
@@ -32,7 +34,6 @@ class StudentFactory extends Factory
             'height' => fake()->numberBetween(155, 192),
             'weight' => fake()->numberBetween(48, 95),
             'appreciation_score' => fake()->randomFloat(2, 8, 19),
-            'absences_count' => fake()->numberBetween(0, 18),
             'appreciation' => fake()->randomElement([
                 'Good progress and active participation.',
                 'Consistent effort throughout the semester.',
@@ -40,5 +41,18 @@ class StudentFactory extends Factory
                 'Strong academic potential with steady improvement.',
             ]),
         ];
+    }
+
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Student $student): void {
+            $academicYear = AcademicYear::active()->first();
+
+            if (! $academicYear) {
+                throw new RuntimeException('Student factories require an active academic year.');
+            }
+
+            $student->updateWithEnrollment([], $academicYear);
+        });
     }
 }

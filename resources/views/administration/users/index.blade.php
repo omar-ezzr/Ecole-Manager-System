@@ -1,28 +1,30 @@
 <x-layouts.app>
-    <div class="mx-auto w-full max-w-6xl space-y-6 p-6">
-        <div class="flex flex-wrap items-end justify-between gap-4">
+    <div class="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
                 <flux:heading size="xl">User administration</flux:heading>
                 <flux:text class="mt-1">Manage accounts, roles, and access links.</flux:text>
             </div>
             @can('create', \App\Models\User::class)
-                <flux:button href="{{ route('administration.users.create') }}" variant="primary" icon="plus">Create user</flux:button>
+                <flux:button href="{{ route('administration.users.create') }}" variant="primary" icon="plus">Add User</flux:button>
             @endcan
         </div>
 
-        @if(session('success'))
-            <flux:callout variant="success">{{ session('success') }}</flux:callout>
-        @endif
-
-        <form method="GET">
-            <flux:input name="search" value="{{ request('search') }}" placeholder="Search by name or email" icon="magnifying-glass" />
+        <form method="GET" action="{{ route('administration.users.index') }}" class="flex max-w-xl flex-col gap-3 sm:flex-row sm:items-end">
+            <flux:input name="search" label="Search Users" value="{{ request('search') }}" placeholder="Name or email" icon="magnifying-glass" class="min-w-0 flex-1" />
+            <div class="flex gap-2">
+                <flux:button type="submit" variant="primary">Search</flux:button>
+                @if(request()->filled('search'))
+                    <flux:button href="{{ route('administration.users.index') }}" variant="ghost">Clear</flux:button>
+                @endif
+            </div>
         </form>
 
-        <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+        <div class="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
+                <table class="w-full min-w-[760px] text-left text-sm">
                     <thead class="border-b bg-zinc-50 text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800">
-                        <tr><th class="px-5 py-3">User</th><th class="px-5 py-3">Role</th><th class="px-5 py-3">Student</th><th class="px-5 py-3">Status</th><th class="px-5 py-3 text-right">Actions</th></tr>
+                        <tr><th scope="col" class="px-5 py-3">Name / Email</th><th scope="col" class="px-5 py-3">Role</th><th scope="col" class="px-5 py-3">Student Link</th><th scope="col" class="px-5 py-3">Status</th><th scope="col" class="px-5 py-3 text-right">Actions</th></tr>
                     </thead>
                     <tbody class="divide-y dark:divide-zinc-700">
                         @forelse($users as $user)
@@ -42,13 +44,13 @@
                                 </td>
                                 <td class="px-5 py-4 text-right">
                                     @can('update', $user)
-                                        <a class="mr-3 text-teal-600" href="{{ route('administration.users.edit', $user) }}">Edit</a>
+                                        <a class="mr-3 font-medium text-teal-700 hover:underline dark:text-teal-300" href="{{ route('administration.users.edit', $user) }}">Edit</a>
                                     @endcan
                                     @can('delete', $user)
                                         <form class="inline" method="POST" action="{{ route('administration.users.destroy', $user) }}">
                                             @csrf
                                             @method('DELETE')
-                                            <button class="text-rose-600" onclick="return confirm('Delete this user?')">Delete</button>
+                                            <button type="submit" class="font-medium text-rose-700 hover:underline dark:text-rose-300" onclick="return confirm('Delete this user?')">Delete</button>
                                         </form>
                                     @endcan
                                 </td>
@@ -59,7 +61,9 @@
                     </tbody>
                 </table>
             </div>
-            <div class="p-4">{{ $users->links() }}</div>
+            @if($users->hasPages())
+                <div class="border-t border-zinc-200 p-4 dark:border-zinc-700">{{ $users->links() }}</div>
+            @endif
         </div>
     </div>
 </x-layouts.app>

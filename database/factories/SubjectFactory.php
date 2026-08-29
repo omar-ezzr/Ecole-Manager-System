@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Models\Subject;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Str;
 
 class SubjectFactory extends Factory
 {
@@ -12,7 +11,7 @@ class SubjectFactory extends Factory
 
     public function definition(): array
     {
-        $name = fake()->unique()->randomElement([
+        $name = fake()->randomElement([
             'Mathematics',
             'Physics',
             'English',
@@ -20,11 +19,11 @@ class SubjectFactory extends Factory
             'Biology',
             'Chemistry',
             'Programming',
-        ]).' '.fake()->unique()->numberBetween(1, 99);
+        ]);
 
         return [
             'name' => $name,
-            'code' => Str::upper(Str::substr(Str::slug($name, ''), 0, 8)),
+            'code' => 'SUB-'.fake()->unique()->numerify('######'),
             'description' => fake()->sentence(),
             'is_active' => true,
             'semester_id' => null,

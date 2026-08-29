@@ -1,21 +1,29 @@
 <x-layouts.app>
-    <div class="mx-auto max-w-3xl p-6">
-        <flux:heading size="xl">Edit semester</flux:heading>
-        <form method="POST" action="{{ route('semesters.update', $semester) }}" class="mt-6 space-y-4">
+    <div class="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
+        <div>
+            <flux:heading level="1" size="xl">Edit Semester</flux:heading>
+            <flux:text class="mt-1">Update {{ $semester->name }} and keep its dates within the academic year.</flux:text>
+        </div>
+        <form method="POST" action="{{ route('semesters.update', $semester) }}" class="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
             @csrf
             @method('PUT')
-            <label class="block text-sm">Academic Year
-                <select name="academic_year_id" class="mt-2 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+            <div class="space-y-5 p-5 sm:p-6">
+                <flux:select name="academic_year_id" label="Academic Year" required>
                     @foreach($academicYears as $academicYear)
                         <option value="{{ $academicYear->id }}" @selected(old('academic_year_id', $semester->academic_year_id) == $academicYear->id)>{{ $academicYear->name }}</option>
                     @endforeach
-                </select>
-            </label>
-            <flux:input label="Name" name="name" value="{{ old('name', $semester->name) }}" />
-            <flux:input type="date" label="Start Date" name="starts_at" value="{{ old('starts_at', $semester->starts_at->toDateString()) }}" />
-            <flux:input type="date" label="End Date" name="ends_at" value="{{ old('ends_at', $semester->ends_at->toDateString()) }}" />
-            <flux:input type="number" label="Sequence" name="sequence" value="{{ old('sequence', $semester->sequence) }}" />
-            <flux:button type="submit" variant="primary">Update semester</flux:button>
+                </flux:select>
+                <flux:input label="Name" name="name" value="{{ old('name', $semester->name) }}" required />
+                <div class="grid gap-5 sm:grid-cols-2">
+                    <flux:input type="date" label="Start Date" name="starts_at" value="{{ old('starts_at', $semester->starts_at->toDateString()) }}" required />
+                    <flux:input type="date" label="End Date" name="ends_at" value="{{ old('ends_at', $semester->ends_at->toDateString()) }}" required />
+                </div>
+                <flux:input type="number" min="1" label="Sequence" name="sequence" value="{{ old('sequence', $semester->sequence) }}" description="Display and calculation order within the academic year." required />
+            </div>
+            <div class="flex justify-end gap-3 border-t border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <flux:button href="{{ route('semesters.index') }}" variant="ghost">Cancel</flux:button>
+                <flux:button type="submit" variant="primary">Save</flux:button>
+            </div>
         </form>
     </div>
 </x-layouts.app>

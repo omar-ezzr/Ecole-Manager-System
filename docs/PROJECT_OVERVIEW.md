@@ -9,11 +9,13 @@ School
 └── Department
     └── Classroom
         └── Student
+            ├── StudentEnrollment
+            │   └── AttendanceRecord
             ├── StudentGrade
             └── HealthRecord
 ```
 
-`Absence` is not a separate implemented entity. Absence totals are stored on `students.absences_count`.
+Daily attendance is stored in `attendance_records` and resolved through historical `student_enrollments`. The retired `students.absences_count` field is removed from the active schema; compatible legacy workbook headers are ignored rather than converted into attendance history.
 
 ## Current Models
 
@@ -21,6 +23,8 @@ School
 - `Department`
 - `Classroom`
 - `Student`
+- `StudentEnrollment`
+- `AttendanceRecord`
 - `StudentGrade`
 - `HealthRecord`
 - `Semester`

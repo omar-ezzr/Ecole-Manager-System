@@ -6,10 +6,14 @@ use App\Models\AcademicYear;
 use App\Models\Classroom;
 use App\Models\Role;
 use App\Models\Semester;
+use App\Models\Student;
+use App\Models\StudentGrade;
 use App\Models\Subject;
 use App\Models\TeachingAssignment;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class AcademicCoreIntegrityTest extends TestCase
@@ -80,5 +84,78 @@ class AcademicCoreIntegrityTest extends TestCase
         $sequences = Semester::where('academic_year_id', $academicYear->id)->orderBy('sequence')->pluck('sequence')->all();
 
         $this->assertSame([1, 2, 3, 4, 5, 6], $sequences);
+    }
+
+    public function test_student_grades_schema_has_assignment_column_foreign_key_and_unique_index(): void
+    {
+        $this->assertTrue(Schema::hasColumn('student_grades', 'teaching_assignment_id'));
+
+        $foreignKey = collect(Schema::getForeignKeys('student_grades'))
+            ->first(fn (array $key) => $key['columns'] === ['teaching_assignment_id']);
+
+        $this->assertNotNull($foreignKey);
+        $this->assertSame('teaching_assignments', $foreignKey['foreign_table']);
+        $this->assertSame(['id'], $foreignKey['foreign_columns']);
+
+        $hasLogicalGradeIndex = collect(Schema::getIndexes('student_grades'))->contains(
+            fn (array $index) => $index['unique']
+                && $index['columns'] === ['student_id', 'semester_id', 'teaching_assignment_id']
+        );
+
+        $this->assertTrue($hasLogicalGradeIndex);
+    }
+
+    public function test_assignment_grade_derives_subject_and_resolves_complete_academic_context(): void
+    {
+        $academicYear = AcademicYear::active()->firstOrFail();
+        $semester = Semester::where('academic_year_id', $academicYear->id)->firstOrFail();
+        $classroom = Classroom::firstOrFail();
+        $student = Student::factory()->create(['classroom_id' => $classroom->id]);
+        $professor = User::factory()->create();
+        $professor->assignRole(Role::ROLE_PROFESSOR);
+        $subject = Subject::factory()->create(['code' => 'CTX-SUBJECT']);
+        $otherSubject = Subject::factory()->create(['code' => 'CTX-OTHER']);
+        $assignment = TeachingAssignment::factory()->create([
+            'professor_id' => $professor->id,
+            'classroom_id' => $classroom->id,
+            'subject_id' => $subject->id,
+            'academic_year_id' => $academicYear->id,
+        ]);
+
+        $grade = StudentGrade::create([
+            'student_id' => $student->id,
+            'teaching_assignment_id' => $assignment->id,
+            'semester_id' => $semester->id,
+            'subject_id' => $otherSubject->id,
+            'grade' => 14,
+            'coefficient' => 2,
+        ])->fresh(['student', 'semester.academicYear', 'subject', 'teachingAssignment.professor', 'teachingAssignment.classroom', 'teachingAssignment.academicYear']);
+
+        $this->assertSame($student->id, $grade->student->id);
+        $this->assertSame($semester->id, $grade->semester->id);
+        $this->assertSame($academicYear->id, $grade->semester->academicYear->id);
+        $this->assertSame($subject->id, $grade->subject->id);
+        $this->assertSame($assignment->id, $grade->teachingAssignment->id);
+        $this->assertSame($classroom->id, $grade->teachingAssignment->classroom->id);
+        $this->assertSame($professor->id, $grade->teachingAssignment->professor->id);
+        $this->assertSame($academicYear->id, $grade->teachingAssignment->academicYear->id);
+    }
+
+    public function test_database_rejects_duplicate_logical_assignment_grade(): void
+    {
+        $academicYear = AcademicYear::active()->firstOrFail();
+        $semester = Semester::where('academic_year_id', $academicYear->id)->firstOrFail();
+        $classroom = Classroom::firstOrFail();
+        $student = Student::factory()->create(['classroom_id' => $classroom->id]);
+        $assignment = TeachingAssignment::factory()->create([
+            'classroom_id' => $classroom->id,
+            'academic_year_id' => $academicYear->id,
+        ]);
+
+        StudentGrade::factory()->forAssignment($assignment, $student, $semester)->create();
+
+        $this->expectException(QueryException::class);
+
+        StudentGrade::factory()->forAssignment($assignment, $student, $semester)->create();
     }
 }

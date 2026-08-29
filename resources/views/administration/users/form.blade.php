@@ -13,13 +13,15 @@
         }
     @endphp
 
-    <div class="mx-auto w-full max-w-3xl p-6">
-        <flux:heading size="xl">{{ $editingUser ? 'Edit user' : 'Create user' }}</flux:heading>
-        <flux:text class="mt-1">Assign one role and the required access link.</flux:text>
+    <div class="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6 lg:p-8">
+        <div>
+            <flux:heading level="1" size="xl">{{ $editingUser ? 'Edit User' : 'Add User' }}</flux:heading>
+            <flux:text class="mt-1">Assign one role, account status, and a Student link when required.</flux:text>
+        </div>
 
         <form
             id="user-administration-form"
-            class="mt-6 space-y-5"
+            class="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
             method="POST"
             action="{{ $editingUser ? route('administration.users.update', $editingUser) : route('administration.users.store') }}"
             x-data="{ role: @js($selectedRole) }"
@@ -29,10 +31,11 @@
                 @method('PUT')
             @endif
 
-            <flux:input name="name" label="Name" value="{{ old('name', $editingUser?->name ?? '') }}" required />
-            <flux:input name="email" type="email" label="Email" value="{{ old('email', $editingUser?->email ?? '') }}" required />
-            <flux:input name="password" type="password" label="{{ $editingUser ? 'New password' : 'Password' }}" placeholder="{{ $editingUser ? 'Leave blank to keep current password' : '' }}" :required="!$editingUser" />
-            <flux:input name="password_confirmation" type="password" label="Confirm password" :required="!$editingUser" />
+            <div class="space-y-5 p-5 sm:p-6">
+            <flux:input name="name" label="Name" value="{{ old('name', $editingUser?->name ?? '') }}" autocomplete="name" required />
+            <flux:input name="email" type="email" label="Email" value="{{ old('email', $editingUser?->email ?? '') }}" autocomplete="email" required />
+            <flux:input name="password" type="password" label="{{ $editingUser ? 'New Password' : 'Password' }}" placeholder="{{ $editingUser ? 'Leave blank to keep the current password' : '' }}" autocomplete="new-password" :required="!$editingUser" />
+            <flux:input name="password_confirmation" type="password" label="Confirm Password" autocomplete="new-password" :required="!$editingUser" />
 
             <flux:select id="role-select" name="role" label="Role" x-model="role" required>
                 <option value="">Select a role</option>
@@ -61,21 +64,15 @@
             </div>
 
             <input type="hidden" name="is_active" value="{{ $protectOwnAdministrator ? 1 : 0 }}">
-            <label class="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="is_active" value="1" @checked($isActive) @disabled($protectOwnAdministrator)>
-                <span>Active account</span>
-            </label>
+            <flux:checkbox name="is_active" value="1" label="Active Account" @checked($isActive) @disabled($protectOwnAdministrator) />
             @if($protectOwnAdministrator)
                 <flux:text class="text-sm">Your administrator role and active status cannot be removed from your own account.</flux:text>
             @endif
 
-            @if($errors->any())
-                <flux:callout variant="danger">{{ $errors->first() }}</flux:callout>
-            @endif
-
-            <div class="flex gap-3">
-                <flux:button type="submit" variant="primary">Save user</flux:button>
-                <flux:button href="{{ route('administration.users.index') }}">Cancel</flux:button>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <flux:button href="{{ route('administration.users.index') }}" variant="ghost">Cancel</flux:button>
+                <flux:button type="submit" variant="primary">Save</flux:button>
             </div>
         </form>
     </div>

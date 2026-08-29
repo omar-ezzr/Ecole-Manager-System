@@ -10,10 +10,10 @@ use App\Models\School;
 use App\Models\Student;
 use App\Models\StudentGrade;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\QueryException;
 use Tests\TestCase;
 
 class SchoolHierarchyTest extends TestCase

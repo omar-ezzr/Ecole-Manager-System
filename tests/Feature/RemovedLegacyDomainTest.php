@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Classroom;
 use App\Models\HealthRecord;
-use App\Models\Role;
 use App\Models\School;
 use App\Models\Student;
 use App\Models\User;
@@ -152,7 +151,6 @@ class RemovedLegacyDomainTest extends TestCase
             'height' => 170,
             'weight' => 70,
             'appreciation_score' => 12,
-            'absences_count' => 0,
             'appreciation' => 'Consistent progress.',
         ], $overrides);
     }
