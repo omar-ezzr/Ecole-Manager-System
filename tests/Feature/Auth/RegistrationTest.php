@@ -1,31 +1,65 @@
 <?php
 
+use App\Livewire\Auth\Login;
+use App\Livewire\Auth\Register;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-test('public registration is unavailable', function () {
-    expect(Route::has('register'))->toBeFalse();
+test('register route exists and guests can open it', function () {
+    expect(Route::has('register'))->toBeTrue();
 
-    $this->get('/register')->assertNotFound();
+    $this->get(route('register'))->assertOk();
 });
 
-test('guests cannot create an account through the former registration endpoint', function () {
-    $this->post('/register', [
-        'name' => 'Public User',
-        'email' => 'public@example.com',
-        'password' => 'Password123!',
-        'password_confirmation' => 'Password123!',
-    ])->assertNotFound();
-
-    $this->assertDatabaseMissing('users', ['email' => 'public@example.com']);
+test('login page shows the named registration link', function () {
+    $this->get(route('login'))
+        ->assertOk()
+        ->assertSee('Create account')
+        ->assertSee(route('register'), false);
 });
 
-test('guest pages do not show registration links', function () {
-    $this->get('/login')->assertOk()->assertDontSee('Sign up')->assertDontSee('Create account');
-    $this->get('/')->assertOk()->assertDontSee('Register');
+test('self registration creates an inactive student that can login after approval', function () {
+    Livewire::test(Register::class)
+        ->set('name', 'Public User')
+        ->set('email', 'public@example.com')
+        ->set('password', 'Password123!')
+        ->set('password_confirmation', 'Password123!')
+        ->call('register')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('login', absolute: false));
 
-    expect(User::where('email', 'public@example.com')->doesntExist())->toBeTrue();
+    $user = User::where('email', 'public@example.com')->firstOrFail();
+
+    expect($user->is_active)->toBeFalse()
+        ->and($user->user_type)->toBe(Role::ROLE_STUDENT)
+        ->and($user->hasRole(Role::ROLE_STUDENT))->toBeTrue()
+        ->and(Hash::check('Password123!', $user->password))->toBeTrue();
+    $this->assertGuest();
+
+    Livewire::test(Login::class)
+        ->set('email', $user->email)
+        ->set('password', 'Password123!')
+        ->call('login')
+        ->assertHasErrors(['email'])
+        ->assertSee('This account is inactive. Contact an administrator.');
+
+    $this->assertGuest();
+
+    $user->update(['is_active' => true]);
+
+    Livewire::test(Login::class)
+        ->set('email', $user->email)
+        ->set('password', 'Password123!')
+        ->call('login')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('dashboard', absolute: false));
+
+    $this->assertAuthenticatedAs($user);
+    $this->get(route('dashboard'))->assertOk();
 });

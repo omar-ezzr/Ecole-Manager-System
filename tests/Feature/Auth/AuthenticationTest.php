@@ -1,44 +1,50 @@
 <?php
 
 use App\Livewire\Auth\Login;
+use App\Models\Role;
 use App\Models\User;
+use App\Support\SchoolPermissions;
 use Livewire\Livewire;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 test('login screen can be rendered', function () {
-    $response = $this->get('/login');
-
-    $response->assertStatus(200);
+    $this->get('/login')->assertOk();
 });
 
-test('users can authenticate using the login screen', function () {
-    $user = User::factory()->create();
+test('active users with valid credentials authenticate and reach their authorized dashboard', function () {
+    $user = User::factory()->create([
+        'user_type' => Role::ROLE_DIRECTOR,
+        'is_active' => true,
+    ]);
+    $user->assignRole(Role::ROLE_DIRECTOR);
 
-    $response = Livewire::test(Login::class)
+    Livewire::test(Login::class)
         ->set('email', $user->email)
         ->set('password', 'password')
-        ->call('login');
-
-    $response
+        ->call('login')
         ->assertHasNoErrors()
         ->assertRedirect(route('dashboard', absolute: false));
 
-    $this->assertAuthenticated();
+    $this->assertAuthenticatedAs($user);
+    expect($user->can(SchoolPermissions::DASHBOARD_GLOBAL))->toBeTrue();
+    $this->get(route('dashboard'))->assertOk();
 });
 
-test('users can not authenticate with invalid password', function () {
-    $user = User::factory()->create();
+test('active users cannot authenticate with an invalid password', function () {
+    $user = User::factory()->create(['is_active' => true]);
 
-    $this->post('/login', [
-        'email' => $user->email,
-        'password' => 'wrong-password',
-    ]);
+    Livewire::test(Login::class)
+        ->set('email', $user->email)
+        ->set('password', 'wrong-password')
+        ->call('login')
+        ->assertHasErrors(['email'])
+        ->assertSee(__('auth.failed'));
 
     $this->assertGuest();
 });
 
-test('inactive users cannot authenticate', function () {
+test('inactive users cannot authenticate with a valid password', function () {
     $user = User::factory()->create(['is_active' => false]);
 
     Livewire::test(Login::class)
@@ -49,6 +55,23 @@ test('inactive users cannot authenticate', function () {
         ->assertSee('This account is inactive. Contact an administrator.');
 
     $this->assertGuest();
+});
+
+test('login rate limiting displays a validation message', function () {
+    for ($attempt = 0; $attempt < 5; $attempt++) {
+        Livewire::test(Login::class)
+            ->set('email', 'limited@example.com')
+            ->set('password', 'wrong-password')
+            ->call('login')
+            ->assertHasErrors(['email']);
+    }
+
+    Livewire::test(Login::class)
+        ->set('email', 'limited@example.com')
+        ->set('password', 'wrong-password')
+        ->call('login')
+        ->assertHasErrors(['email'])
+        ->assertSee('Too many login attempts');
 });
 
 test('users can logout', function () {
