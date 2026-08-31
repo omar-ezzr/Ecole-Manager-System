@@ -34,11 +34,6 @@ class Semester extends Model
         return $this->belongsTo(AcademicYear::class);
     }
 
-    public function subjects(): HasMany
-    {
-        return $this->hasMany(Subject::class);
-    }
-
     public function grades(): HasMany
     {
         return $this->hasMany(StudentGrade::class);

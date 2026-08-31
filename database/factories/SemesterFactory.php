@@ -14,9 +14,9 @@ class SemesterFactory extends Factory
     {
         $academicYear = AcademicYear::query()->inRandomOrder()->first()
             ?? AcademicYear::factory()->create();
-        $sequence = fake()->numberBetween(1, 6);
+        $sequence = fake()->numberBetween(1, 2);
         $start = $academicYear->starts_at->copy()->addDays(($sequence - 1) * 30);
-        $end = $sequence === 6 ? $academicYear->ends_at->copy() : $start->copy()->addDays(29);
+        $end = $sequence === 2 ? $academicYear->ends_at->copy() : $start->copy()->addDays(29);
 
         return [
             'academic_year_id' => $academicYear->id,

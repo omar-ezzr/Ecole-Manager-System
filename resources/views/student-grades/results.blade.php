@@ -4,6 +4,9 @@
             <div>
                 <flux:heading size="xl">{{ auth()->user()->isStudentUser() ? 'My Results' : 'Student Results' }}</flux:heading>
                 <flux:text class="mt-1">{{ $student->last_name }} {{ $student->first_name }} | {{ $student->student_number }}</flux:text>
+                @if($historicalClassroom)
+                    <flux:text class="mt-1">{{ $selectedYear?->name }} classroom: {{ $historicalClassroom->name }}</flux:text>
+                @endif
             </div>
             <div class="flex w-full flex-col gap-3 sm:flex-row sm:items-end lg:w-auto">
                 @if($availableYears->isNotEmpty())
@@ -24,7 +27,7 @@
                 <div class="flex items-center justify-between border-b px-5 py-4 dark:border-zinc-700">
                     <div>
                         <div class="font-medium">{{ $entry['semester']->name }}</div>
-                        <div class="text-sm text-zinc-500">{{ $selectedYear?->name }}</div>
+                        <div class="text-sm text-zinc-500">{{ $selectedYear?->name }} · {{ $historicalClassroom?->name ?? 'Historical classroom unavailable' }}</div>
                     </div>
                     <div class="text-right">
                         <div class="text-sm text-zinc-500">Semester Average</div>

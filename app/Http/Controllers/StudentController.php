@@ -64,7 +64,10 @@ class StudentController extends Controller
     {
         $this->authorize('create', Student::class);
 
-        return view('students.create', ['classrooms' => \App\Models\Classroom::orderBy('name')->get()]);
+        return view('students.create', [
+            'classrooms' => \App\Models\Classroom::active()->orderBy('name')->get(),
+            'semesters' => Semester::where('academic_year_id', AcademicYear::active()->value('id'))->orderBy('sequence')->get(),
+        ]);
     }
 
     public function store(Request $request)
@@ -132,7 +135,13 @@ class StudentController extends Controller
         ])->findOrFail($id);
         $this->authorize('update', $student);
 
-        return view('students.edite', ['student' => $student, 'classrooms' => \App\Models\Classroom::orderBy('name')->get()]);
+        return view('students.edite', [
+            'student' => $student,
+            'classrooms' => \App\Models\Classroom::where(function ($query) use ($student): void {
+                $query->where('is_active', true)->orWhere('id', $student->classroom_id);
+            })->orderBy('name')->get(),
+            'semesters' => Semester::where('academic_year_id', $activeAcademicYearId)->orderBy('sequence')->get(),
+        ]);
     }
 
     public function update(Request $request, string $id)
@@ -162,7 +171,7 @@ class StudentController extends Controller
             $studentNumberRule->ignore($ignoreId);
         }
 
-        $semesterGradeRules = collect(range(1, 6))
+        $semesterGradeRules = collect([1, 2])
             ->mapWithKeys(fn (int $sequence) => [
                 'semester_'.$sequence => [
                     'nullable',

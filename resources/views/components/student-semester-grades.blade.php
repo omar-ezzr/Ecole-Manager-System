@@ -7,7 +7,7 @@
         new Chart(document.getElementById('studentSemesterGrades'), {
             type: 'line',
             data: {
-                labels: ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6'],
+                labels: ['Semester 1', 'Semester 2'],
                 datasets: [{
                     label: 'Grades',
                     data: @json($grades),

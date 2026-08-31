@@ -56,6 +56,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:'.P::CLASSROOMS_MANAGE);
     Route::resource('classrooms', ClassroomController::class)->only(['index', 'show'])
         ->middleware('permission:'.$classroomViewPermissions);
+    Route::post('classrooms/{classroom}/subjects', [ClassroomController::class, 'assignSubject'])
+        ->middleware('permission:'.P::CLASSROOMS_MANAGE)
+        ->name('classrooms.subjects.store');
+    Route::delete('classrooms/{classroom}/subjects/{classroom_subject}', [ClassroomController::class, 'removeSubject'])
+        ->middleware('permission:'.P::CLASSROOMS_MANAGE)
+        ->name('classrooms.subjects.destroy');
 
     Route::resource('departments', DepartmentController::class)->except(['index', 'show'])
         ->middleware('permission:'.P::DEPARTMENTS_MANAGE);
@@ -128,9 +134,6 @@ Route::middleware(['auth', 'verified', 'permission:'.P::STUDENTS_IMPORT])->group
     Route::post('/import-health-records', [InsertModule::class, 'healthRecords'])->name('excel.importHealthRecords');
     Route::post('/import-semester-1', [InsertModule::class, 'semester1'])->name('excel.importSemester1');
     Route::post('/import-semester-2', [InsertModule::class, 'semester2'])->name('excel.importSemester2');
-    Route::post('/import-semester-3', [InsertModule::class, 'semester3'])->name('excel.importSemester3');
-    Route::post('/import-semester-4', [InsertModule::class, 'semester4'])->name('excel.importSemester4');
-    Route::post('/import-semesters-5-6', [InsertModule::class, 'semesters5And6'])->name('excel.importSemesters5And6');
 });
 
 Route::get('/absences', function () {
@@ -183,21 +186,6 @@ Route::middleware(['auth', 'verified', 'permission:'.P::STUDENTS_IMPORT])->group
         'semester-2-template.xlsx',
         'Semester 2 template file not found.'
     ))->name('templates.semester-2');
-
-    Route::get('/templates/semester-3', fn () => $downloadTemplate(
-        'semester-3-template.xlsx',
-        'Semester 3 template file not found.'
-    ))->name('templates.semester-3');
-
-    Route::get('/templates/semester-4', fn () => $downloadTemplate(
-        'semester-4-template.xlsx',
-        'Semester 4 template file not found.'
-    ))->name('templates.semester-4');
-
-    Route::get('/templates/semesters-5-6', fn () => $downloadTemplate(
-        'semesters-5-6-template.xlsx',
-        'Semesters 5 and 6 template file not found.'
-    ))->name('templates.semesters-5-6');
 });
 
 require __DIR__.'/auth.php';

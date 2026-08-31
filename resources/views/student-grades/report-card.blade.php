@@ -21,15 +21,15 @@
                 </div>
                 <div>
                     <div class="text-sm text-zinc-500">School</div>
-                    <div class="font-medium">{{ $student->classroom->department->school->name }}</div>
+                    <div class="font-medium">{{ $historicalClassroom?->department?->school?->name ?? $student->classroom->department->school->name }}</div>
                 </div>
                 <div>
                     <div class="text-sm text-zinc-500">Department</div>
-                    <div class="font-medium">{{ $student->classroom->department->name }}</div>
+                    <div class="font-medium">{{ $historicalClassroom?->department?->name ?? $student->classroom->department->name }}</div>
                 </div>
                 <div>
                     <div class="text-sm text-zinc-500">Classroom</div>
-                    <div class="font-medium">{{ $student->classroom->name }}</div>
+                    <div class="font-medium">{{ $historicalClassroom?->name ?? $student->classroom->name }}</div>
                 </div>
                 <div>
                     <div class="text-sm text-zinc-500">Academic Year</div>

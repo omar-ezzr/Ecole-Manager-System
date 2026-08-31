@@ -26,13 +26,36 @@ class StudentGradeController extends Controller
             return redirect()->route('teaching-assignments.index');
         }
 
+        $academicYears = AcademicYear::orderByDesc('starts_at')->get();
+        $selectedYear = $request->filled('academic_year_id')
+            ? $academicYears->firstWhere('id', $request->integer('academic_year_id'))
+            : ($academicYears->firstWhere('is_active', true) ?? $academicYears->first());
+        $classrooms = $selectedYear
+            ? \App\Models\Classroom::query()
+                ->where(function ($query) use ($selectedYear): void {
+                    $query->where('is_active', true)
+                        ->orWhereHas('teachingAssignments', fn ($assignments) => $assignments->where('academic_year_id', $selectedYear->id))
+                        ->orWhereHas('studentEnrollments', fn ($enrollments) => $enrollments->where('academic_year_id', $selectedYear->id));
+                })
+                ->orderBy('name')
+                ->get()
+            : collect();
+        $selectedClassroom = $request->filled('classroom_id')
+            ? $classrooms->firstWhere('id', $request->integer('classroom_id'))
+            : null;
+
         $students = Student::query()
             ->with('classroom.department.school')
-            ->whereHas('grades', fn ($grades) => $grades->whereNotNull('teaching_assignment_id'))
+            ->whereHas('grades', function ($grades) use ($selectedYear, $selectedClassroom): void {
+                $grades->whereNotNull('teaching_assignment_id')
+                    ->when($selectedYear, fn ($query) => $query->forAcademicYear($selectedYear))
+                    ->when($selectedClassroom, fn ($query) => $query->whereHas('teachingAssignment', fn ($assignments) => $assignments->where('classroom_id', $selectedClassroom->id)));
+            })
             ->orderBy('student_number')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
-        return view('student-grades.index', compact('students'));
+        return view('student-grades.index', compact('students', 'academicYears', 'selectedYear', 'classrooms', 'selectedClassroom'));
     }
 
     public function store(Request $request)
@@ -51,7 +74,7 @@ class StudentGradeController extends Controller
             'grades.*.coefficient' => ['nullable', 'numeric', 'gt:0'],
         ]);
 
-        $assignment = TeachingAssignment::with('subject.semester')->findOrFail($data['teaching_assignment_id']);
+        $assignment = TeachingAssignment::with('subject')->findOrFail($data['teaching_assignment_id']);
         $semester = Semester::findOrFail($data['semester_id']);
         $rows = collect($data['grades']);
         $students = Student::query()
@@ -152,6 +175,7 @@ class StudentGradeController extends Controller
 
         return view('student-grades.results', [
             'student' => $student->load('classroom.department.school'),
+            'historicalClassroom' => $this->historicalClassroom($student, $selectedYear, $grades),
             'availableYears' => $availableYears,
             'selectedYear' => $selectedYear,
             'semesterResults' => $semesterResults,
@@ -168,6 +192,7 @@ class StudentGradeController extends Controller
 
         return view('student-grades.report-card', [
             'student' => $student->load('classroom.department.school'),
+            'historicalClassroom' => $this->historicalClassroom($student, $semester->academicYear, $grades),
             'semester' => $semester,
             'grades' => $grades,
             'weightedAverage' => StudentGrade::weightedAverage($grades),
@@ -190,11 +215,6 @@ class StudentGradeController extends Controller
             $errors['semester_id'] = 'The selected semester does not belong to the teaching assignment academic year.';
         }
 
-        if ($assignment->subject?->semester_id !== null
-            && $assignment->subject->semester_id !== $semester->id) {
-            $errors['semester_id'] = 'The teaching assignment subject is not configured for the selected semester.';
-        }
-
         if ($assignment->subject?->is_active !== true) {
             $errors['teaching_assignment_id'] = 'The teaching assignment subject is inactive.';
         }
@@ -202,6 +222,22 @@ class StudentGradeController extends Controller
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    private function historicalClassroom(Student $student, ?AcademicYear $academicYear, Collection $grades): ?\App\Models\Classroom
+    {
+        if (! $academicYear) {
+            return null;
+        }
+
+        $enrollmentClassroom = $student->enrollments()
+            ->with('classroom.department.school')
+            ->where('academic_year_id', $academicYear->id)
+            ->orderBy('enrolled_at')
+            ->first()?->classroom;
+
+        return $enrollmentClassroom
+            ?? $grades->first()?->teachingAssignment?->classroom;
     }
 
     /**
@@ -214,7 +250,7 @@ class StudentGradeController extends Controller
         ?Semester $semester = null
     ): Collection {
         return StudentGrade::query()
-            ->with(['student', 'semester.academicYear', 'subject', 'teachingAssignment.professor'])
+            ->with(['student', 'semester.academicYear', 'subject', 'teachingAssignment.professor', 'teachingAssignment.classroom.department.school'])
             ->forAcademicResults($student)
             ->when($academicYear, fn ($grades) => $grades->forAcademicYear($academicYear))
             ->when($semester, fn ($grades) => $grades->forSemester($semester))

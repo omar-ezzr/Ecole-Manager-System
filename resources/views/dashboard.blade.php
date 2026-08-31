@@ -160,7 +160,7 @@
         </div>
 
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            @foreach ([1, 2, 3, 4, 5, 6] as $position)
+            @foreach ([1, 2] as $position)
                 <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900">
                     <div class="border-b border-zinc-100 p-4 dark:border-white/10">
                         <flux:heading>Semester {{ $position }} Average</flux:heading>

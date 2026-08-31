@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AcademicYear;
 use App\Models\Classroom;
+use App\Models\ClassroomSubject;
 use App\Models\Role;
 use App\Models\Semester;
 use App\Models\Student;
@@ -47,8 +48,8 @@ class TeachingAssignmentController extends Controller
         $assignments = $query->paginate(20)->withQueryString();
 
         $professors = User::role(Role::ROLE_PROFESSOR)->orderBy('name');
-        $classrooms = Classroom::orderBy('name');
-        $subjects = Subject::orderBy('code');
+        $classrooms = Classroom::active()->orderBy('name');
+        $subjects = Subject::active()->orderBy('code');
         $academicYears = AcademicYear::orderByDesc('starts_at');
 
         if ($viewOwnOnly) {
@@ -210,6 +211,16 @@ class TeachingAssignmentController extends Controller
             ],
         ])->validate();
 
+        if (! ClassroomSubject::query()
+            ->where('classroom_id', $data['classroom_id'])
+            ->where('subject_id', $data['subject_id'])
+            ->where('academic_year_id', $data['academic_year_id'])
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'subject_id' => 'Assign this subject to the classroom for the selected academic year before creating a teaching assignment.',
+            ]);
+        }
+
         return $data;
     }
 
@@ -218,7 +229,7 @@ class TeachingAssignmentController extends Controller
         return [
             'professors' => User::role(Role::ROLE_PROFESSOR)->orderBy('name')->get(),
             'classrooms' => Classroom::with('department.school')->orderBy('name')->get(),
-            'subjects' => Subject::orderBy('code')->get(),
+            'subjects' => Subject::active()->orderBy('code')->get(),
             'academicYears' => AcademicYear::orderByDesc('starts_at')->get(),
         ];
     }

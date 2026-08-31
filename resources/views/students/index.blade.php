@@ -54,7 +54,7 @@
                             <th scope="col" class="px-5 py-4">Phone</th>
                             <th scope="col" class="px-5 py-4">Email</th>
                             <th scope="col" class="px-5 py-4">Level</th>
-                            @foreach ([1, 2, 3, 4, 5, 6] as $position)
+                            @foreach ($semesterIds->keys() as $position)
                                 <th scope="col" class="px-5 py-4 text-center">S{{ $position }}</th>
                             @endforeach
                             <th scope="col" class="px-5 py-4 text-right">Actions</th>
@@ -80,7 +80,7 @@
                                 <td class="px-5 py-4">{{ $student['phone'] ?: '—' }}</td>
                                 <td class="px-5 py-4">{{ $student['email'] ?: '—' }}</td>
                                 <td class="px-5 py-4">{{ $student['education_level'] ?: '—' }}</td>
-                                @foreach ([1, 2, 3, 4, 5, 6] as $position)
+                                @foreach ($semesterIds->keys() as $position)
                                     <td class="px-5 py-4 text-center font-medium text-zinc-950 dark:text-white">
                                         {{ $canViewSemesterAverages ? (optional($student->semesterAverages->first(fn ($grade) => $grade->semester?->sequence === $position))->grade ?? 0) : '—' }}
                                     </td>

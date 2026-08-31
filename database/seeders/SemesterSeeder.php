@@ -12,15 +12,11 @@ class SemesterSeeder extends Seeder
     {
         $academicYear = AcademicYear::active()->firstOrFail();
         $ranges = [
-            1 => ['2026-09-01', '2026-10-31'],
-            2 => ['2026-11-01', '2026-12-31'],
-            3 => ['2027-01-01', '2027-02-28'],
-            4 => ['2027-03-01', '2027-04-30'],
-            5 => ['2027-05-01', '2027-06-15'],
-            6 => ['2027-06-16', '2027-07-31'],
+            1 => ['2026-09-01', '2027-01-31'],
+            2 => ['2027-02-01', '2027-07-31'],
         ];
 
-        foreach (range(1, 6) as $position) {
+        foreach ([1, 2] as $position) {
             Semester::updateOrCreate(
                 [
                     'academic_year_id' => $academicYear->id,

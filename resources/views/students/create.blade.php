@@ -47,7 +47,8 @@
                     <flux:text class="mt-1">Optional semester averages use the validated 0–20 grade scale.</flux:text>
 
                     <div class="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                        @foreach(range(1, 6) as $position)
+                        @foreach($semesters as $semester)
+                            @php($position = $semester->sequence)
                             <flux:input
                                 label="Semester {{ $position }}"
                                 type="number"
@@ -120,9 +121,6 @@
                     @foreach([
                         ['route' => 'excel.importSemester1', 'field' => 'excel_file_semester_1', 'title' => 'Semester 1', 'template' => 'templates.semester-1'],
                         ['route' => 'excel.importSemester2', 'field' => 'excel_file_semester_2', 'title' => 'Semester 2', 'template' => 'templates.semester-2'],
-                        ['route' => 'excel.importSemester3', 'field' => 'excel_file_semester_3', 'title' => 'Semester 3', 'template' => 'templates.semester-3'],
-                        ['route' => 'excel.importSemester4', 'field' => 'excel_file_semester_4', 'title' => 'Semester 4', 'template' => 'templates.semester-4'],
-                        ['route' => 'excel.importSemesters5And6', 'field' => 'excel_file_semesters_5_6', 'title' => 'Semesters 5 and 6', 'template' => 'templates.semesters-5-6'],
                     ] as $import)
                         <form action="{{ route($import['route']) }}" method="POST" enctype="multipart/form-data" class="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
                             @csrf

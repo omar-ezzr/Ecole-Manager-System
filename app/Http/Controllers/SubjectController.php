@@ -76,8 +76,12 @@ class SubjectController extends Controller
     {
         $this->authorize('delete', $subject);
 
-        if ($subject->teachingAssignments()->exists() || $subject->grades()->exists()) {
-            return $this->referencedParentResponse($request, 'This subject cannot be deleted because it is still referenced.');
+        if ($subject->teachingAssignments()->exists()
+            || $subject->grades()->exists()
+            || $subject->classroomSubjects()->exists()) {
+            $subject->update(['is_active' => false]);
+
+            return redirect()->route('subjects.index')->with('warning', 'This subject has academic history and cannot be deleted. It has been archived instead.');
         }
 
         try {
@@ -109,7 +113,6 @@ class SubjectController extends Controller
             'code' => strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', $validated['code'])),
             'description' => isset($validated['description']) ? strip_tags($validated['description']) : null,
             'is_active' => (bool) ($validated['is_active'] ?? true),
-            'semester_id' => null,
         ];
     }
 

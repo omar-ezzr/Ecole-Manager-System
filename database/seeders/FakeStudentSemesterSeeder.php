@@ -18,13 +18,13 @@ class FakeStudentSemesterSeeder extends Seeder
             $this->call(SchoolStructureSeeder::class);
         }
 
-        if (Semester::query()->whereBetween('position', [1, 6])->count() < 6) {
+        if (Semester::query()->whereBetween('position', [1, 2])->count() < 2) {
             $this->call(SemesterSeeder::class);
         }
 
         $classroomIds = Classroom::query()->orderBy('id')->pluck('id')->values();
         $semesters = Semester::query()
-            ->whereBetween('position', [1, 6])
+            ->whereBetween('position', [1, 2])
             ->orderBy('position')
             ->get();
 
@@ -32,8 +32,8 @@ class FakeStudentSemesterSeeder extends Seeder
             throw new RuntimeException('Cannot seed fake students because no classrooms exist.');
         }
 
-        if ($semesters->count() < 6) {
-            throw new RuntimeException('Cannot seed semester grades because semesters 1 through 6 do not exist.');
+        if ($semesters->count() < 2) {
+            throw new RuntimeException('Cannot seed semester grades because semesters 1 and 2 do not exist.');
         }
 
         $timestamp = now();

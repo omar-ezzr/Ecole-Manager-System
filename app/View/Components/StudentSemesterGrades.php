@@ -21,7 +21,7 @@ class StudentSemesterGrades extends Component
 
     public function render(): View|Closure|string
     {
-        $grades = collect(range(1, 6))
+        $grades = collect([1, 2])
             ->map(fn (int $position) => $this->gradeForSemester($position))
             ->values()
             ->all();

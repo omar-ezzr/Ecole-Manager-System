@@ -50,7 +50,8 @@
                     <flux:text class="mt-1">Optional semester averages use the validated 0–20 grade scale.</flux:text>
 
                     <div class="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                        @foreach(range(1, 6) as $position)
+                        @foreach($semesters as $semester)
+                            @php($position = $semester->sequence)
                             <flux:input
                                 label="Semester {{ $position }}"
                                 type="number"

@@ -129,7 +129,7 @@ class DashboardController extends Controller
 
     private function semesterAverageCharts(): array
     {
-        return collect(range(1, 6))
+        return collect([1, 2])
             ->mapWithKeys(fn (int $position) => [$position => $this->semesterAverageChart($position)])
             ->all();
     }

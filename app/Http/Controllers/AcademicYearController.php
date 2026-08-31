@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicYear;
+use App\Models\Classroom;
+use App\Models\Semester;
 use App\Support\SchoolPermissions as P;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -50,7 +53,8 @@ class AcademicYearController extends Controller
                 AcademicYear::query()->update(['is_active' => false]);
             }
 
-            AcademicYear::create($data);
+            $academicYear = AcademicYear::create($data);
+            $this->ensureTwoSemesters($academicYear);
         });
 
         return redirect()->route('academic-years.index')->with('success', 'Academic year created successfully.');
@@ -60,9 +64,23 @@ class AcademicYearController extends Controller
     {
         $this->authorize('view', $academicYear);
 
-        $academicYear->load('semesters');
+        $academicYear->load(['semesters' => fn ($semesters) => $semesters->orderBy('sequence')]);
+        $classrooms = Classroom::query()
+            ->with('department')
+            ->withCount([
+                'studentEnrollments as enrolled_students_count' => fn ($enrollments) => $enrollments->where('academic_year_id', $academicYear->id),
+                'classroomSubjects as assigned_subjects_count' => fn ($subjects) => $subjects->where('academic_year_id', $academicYear->id),
+            ])
+            ->where(function ($query) use ($academicYear): void {
+                $query->where('is_active', true)
+                    ->orWhereHas('studentEnrollments', fn ($enrollments) => $enrollments->where('academic_year_id', $academicYear->id))
+                    ->orWhereHas('classroomSubjects', fn ($subjects) => $subjects->where('academic_year_id', $academicYear->id))
+                    ->orWhereHas('teachingAssignments', fn ($assignments) => $assignments->where('academic_year_id', $academicYear->id));
+            })
+            ->orderBy('name')
+            ->get();
 
-        return view('academic-years.show', compact('academicYear'));
+        return view('academic-years.show', compact('academicYear', 'classrooms'));
     }
 
     public function edit(AcademicYear $academicYear)
@@ -84,6 +102,7 @@ class AcademicYearController extends Controller
             }
 
             $academicYear->update($data);
+            $this->ensureTwoSemesters($academicYear->fresh());
         });
 
         return redirect()->route('academic-years.index')->with('success', 'Academic year updated successfully.');
@@ -93,11 +112,15 @@ class AcademicYearController extends Controller
     {
         $this->authorize('delete', $academicYear);
 
-        if ($academicYear->semesters()->exists() || $academicYear->teachingAssignments()->exists()) {
-            return $this->referencedParentResponse($request, 'This academic year cannot be deleted because it is still referenced.');
+        if ($academicYear->teachingAssignments()->exists()
+            || $academicYear->studentEnrollments()->exists()
+            || $academicYear->classroomSubjects()->exists()
+            || $academicYear->semesters()->whereHas('grades')->exists()) {
+            return $this->referencedParentResponse($request, 'This academic year cannot be deleted because it contains academic history.');
         }
 
         try {
+            $academicYear->semesters()->delete();
             $academicYear->delete();
         } catch (QueryException) {
             return $this->referencedParentResponse($request, 'This academic year cannot be deleted because it is still referenced.');
@@ -138,6 +161,32 @@ class AcademicYearController extends Controller
             'ends_at' => $data['ends_at'],
             'is_active' => (bool) ($data['is_active'] ?? false),
         ];
+    }
+
+    private function ensureTwoSemesters(AcademicYear $academicYear): void
+    {
+        $start = CarbonImmutable::parse($academicYear->starts_at);
+        $end = CarbonImmutable::parse($academicYear->ends_at);
+        $midpoint = $start->addDays((int) floor($start->diffInDays($end) / 2));
+        $ranges = [
+            1 => [$start, $midpoint],
+            2 => [$midpoint->addDay(), $end],
+        ];
+
+        foreach ([1, 2] as $sequence) {
+            $semester = Semester::firstOrNew([
+                'academic_year_id' => $academicYear->id,
+                'sequence' => $sequence,
+            ]);
+
+            $semester->fill([
+                'name' => 'Semester '.$sequence,
+                'code' => 'year_'.$academicYear->id.'_semester_'.$sequence,
+                'position' => $sequence,
+                'starts_at' => $ranges[$sequence][0]->toDateString(),
+                'ends_at' => $ranges[$sequence][1]->toDateString(),
+            ])->save();
+        }
     }
 
     private function referencedParentResponse(Request $request, string $message)

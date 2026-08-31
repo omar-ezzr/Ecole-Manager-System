@@ -119,7 +119,7 @@ class SemesterController extends Controller
             ],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['required', 'date', 'after:starts_at'],
-            'sequence' => ['required', 'integer', 'min:1'],
+            'sequence' => ['required', 'integer', Rule::in([1, 2]), Rule::unique('semesters', 'sequence')->where(fn ($query) => $query->where('academic_year_id', $request->input('academic_year_id')))->ignore($semester?->id)],
         ]);
 
         $academicYear = AcademicYear::findOrFail($data['academic_year_id']);
