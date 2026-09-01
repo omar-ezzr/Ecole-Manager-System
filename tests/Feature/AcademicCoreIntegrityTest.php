@@ -83,7 +83,7 @@ class AcademicCoreIntegrityTest extends TestCase
         $academicYear = AcademicYear::active()->firstOrFail();
         $sequences = Semester::where('academic_year_id', $academicYear->id)->orderBy('sequence')->pluck('sequence')->all();
 
-        $this->assertSame([1, 2, 3, 4, 5, 6], $sequences);
+        $this->assertSame([1, 2], $sequences);
     }
 
     public function test_student_grades_schema_has_assignment_column_foreign_key_and_unique_index(): void

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\AdminUserSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
@@ -11,6 +12,22 @@ use Tests\TestCase;
 class AuthenticationUserManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_admin_seeder_does_not_change_an_existing_administrator(): void
+    {
+        $admin = $this->admin();
+        $originalId = $admin->id;
+        $originalPassword = $admin->getRawOriginal('password');
+        $originalRoles = $admin->getRoleNames()->sort()->values()->all();
+
+        $this->seed(AdminUserSeeder::class);
+
+        $admin->refresh();
+
+        $this->assertSame($originalId, $admin->id);
+        $this->assertSame($originalPassword, $admin->getRawOriginal('password'));
+        $this->assertSame($originalRoles, $admin->getRoleNames()->sort()->values()->all());
+    }
 
     public function test_administrator_created_active_user_has_usable_credentials(): void
     {

@@ -12,48 +12,45 @@ class SchoolStructureSeeder extends Seeder
     public function run(): void
     {
         $school = School::updateOrCreate(
-            ['name' => 'Ecole Manager Demo School'],
+            ['name' => 'Ecole Al Khawarizmi'],
             [
                 'country' => 'Morocco',
-                'region' => 'Casablanca-Settat',
-                'city' => 'Casablanca',
-                'address' => '12 Avenue des Ecoles',
+                'region' => 'Rabat-Salé-Kénitra',
+                'city' => 'Salé',
+                'address' => 'Avenue Ibn Sina, Salé, Maroc',
             ]
         );
 
         $departments = [
-            'Computer Science' => ['address' => 'Building A'],
-            'Business Management' => ['address' => 'Building B'],
-            'General Studies' => ['address' => 'Building C'],
+            'Tronc Commun' => [
+                'address' => 'Bâtiment A',
+                'classrooms' => ['TC-1', 'TC-2'],
+            ],
+            'Sciences Expérimentales' => [
+                'address' => 'Bâtiment B',
+                'classrooms' => ['1BAC-SC-1', '1BAC-SC-2'],
+            ],
+            'Baccalauréat Sciences' => [
+                'address' => 'Bâtiment C',
+                'classrooms' => ['2BAC-PC-1', '2BAC-SVT-1'],
+            ],
         ];
 
         foreach ($departments as $name => $attributes) {
             $department = Department::updateOrCreate(
-                ['name' => $name],
-                [
-                    'school_id' => $school->id,
-                    'address' => $attributes['address'],
-                ]
+                ['school_id' => $school->id, 'name' => $name],
+                ['address' => $attributes['address']]
             );
 
-            foreach ($this->classroomsForDepartment($name) as $classroomName) {
+            foreach ($attributes['classrooms'] as $classroomName) {
                 Classroom::updateOrCreate(
-                    ['name' => $classroomName],
+                    ['department_id' => $department->id, 'name' => $classroomName],
                     [
-                        'department_id' => $department->id,
-                        'address' => $attributes['address'].' - Room '.$classroomName,
+                        'address' => $attributes['address'].' - Salle '.$classroomName,
+                        'is_active' => true,
                     ]
                 );
             }
         }
-    }
-
-    private function classroomsForDepartment(string $department): array
-    {
-        return match ($department) {
-            'Computer Science' => ['CS-101', 'CS-102'],
-            'Business Management' => ['BM-101', 'BM-102'],
-            default => ['GS-101', 'GS-102'],
-        };
     }
 }

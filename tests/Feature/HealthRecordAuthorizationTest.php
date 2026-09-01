@@ -53,7 +53,7 @@ class HealthRecordAuthorizationTest extends TestCase
 
     public function test_student_cannot_view_another_students_health_record(): void
     {
-        $ownStudent = Student::firstOrFail();
+        $ownStudent = Student::doesntHave('user')->firstOrFail();
         $otherRecord = HealthRecord::where('student_id', '!=', $ownStudent->id)->firstOrFail();
         $user = User::factory()->create(['student_id' => $ownStudent->id]);
         $user->assignRole(Role::ROLE_STUDENT);

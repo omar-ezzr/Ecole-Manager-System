@@ -11,12 +11,12 @@ class DemoHealthRecordSeeder extends Seeder
     public function run(): void
     {
         $records = [
-            ['STD-0001', '2025-01-15', 'Ophtalmologie', 'Routine eye check. No medication required.'],
-            ['STD-0003', '2025-02-03', 'Fievre', 'Rest for two days and hydration.'],
-            ['STD-0005', '2025-02-21', 'Odontologie', 'Dental follow-up recommended.'],
-            ['STD-0008', '2025-03-07', 'Asthenie', 'Vitamin supplement and monitoring.'],
-            ['STD-0012', '2025-03-19', 'Dermatologie et Affections', 'Topical cream for seven days.'],
-            ['STD-0017', '2025-04-04', 'Podologie', 'Sports activity limitation for one week.'],
+            ['STU-0001', '2026-09-15', 'Ophtalmologie', 'Contrôle visuel de routine. Aucun traitement nécessaire.'],
+            ['STU-0003', '2026-10-03', 'Fièvre', 'Repos de deux jours et bonne hydratation.'],
+            ['STU-0005', '2026-10-21', 'Odontologie', 'Contrôle dentaire recommandé.'],
+            ['STU-0008', '2026-11-07', 'Asthénie', 'Suivi de la fatigue et conseils d’hygiène de vie.'],
+            ['STU-0012', '2026-11-19', 'Dermatologie', 'Crème locale prescrite pendant une semaine.'],
+            ['STU-0017', '2026-12-04', 'Podologie', 'Limitation temporaire des activités sportives.'],
         ];
 
         foreach ($records as [$studentNumber, $date, $type, $prescription]) {
@@ -32,9 +32,7 @@ class DemoHealthRecordSeeder extends Seeder
                     'date' => $date,
                     'type' => $type,
                 ],
-                [
-                    'medical_prescription' => $prescription,
-                ]
+                ['medical_prescription' => $prescription]
             );
         }
     }

@@ -17,25 +17,25 @@ class AdminUserSeeder extends Seeder
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $password = env('ADMIN_PASSWORD');
+        $password = config('auth.admin_password');
         $user = User::firstOrNew(['email' => 'admin@gmail.com']);
 
+        if ($user->exists) {
+            return;
+        }
+
+        if (! $password && app()->environment('production')) {
+            $this->command?->warn('ADMIN_PASSWORD is missing; administrator creation was skipped.');
+
+            return;
+        }
+
+        $password ??= 'ChangeMe123!';
         $user->name = SchoolRole::ROLE_ADMINISTRATOR;
         $user->user_type = SchoolRole::ROLE_ADMINISTRATOR;
         $user->is_active = true;
-        $user->email_verified_at ??= now();
-
-        if (! $user->exists) {
-            if (! $password && app()->environment('production')) {
-                $this->command?->warn('ADMIN_PASSWORD is missing; administrator creation was skipped.');
-
-                return;
-            }
-
-            $user->password = Hash::make($password ?? 'ChangeMe123!');
-        } elseif ($password && ! Hash::check($password, $user->password)) {
-            $user->password = Hash::make($password);
-        }
+        $user->email_verified_at = now();
+        $user->password = Hash::make($password);
 
         $user->save();
         $user->syncRoles(SchoolRole::ROLE_ADMINISTRATOR);
