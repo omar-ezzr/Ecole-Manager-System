@@ -80,7 +80,8 @@ class ExcelImportTest extends TestCase
         }
 
         $this->assertSame('absences_count', (new ExcelImportReader(__FILE__))->canonicalHeader('arrets'));
-        $this->assertSame(0, AttendanceRecord::count());
+        $this->assertSame(0, AttendanceRecord::query()->whereHas('studentEnrollment.student', fn ($students) => $students
+            ->whereIn('student_number', ['IMP-LEGACY-ABS-1', 'IMP-LEGACY-ABS-2']))->count());
     }
 
     public function test_student_import_rejects_nonexistent_numeric_classroom_id(): void

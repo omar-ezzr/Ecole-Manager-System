@@ -17,6 +17,13 @@ class AttendanceReportingTest extends TestCase
 {
     use RefreshDatabase;
 
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        AttendanceRecord::query()->delete();
+    }
     public function test_student_summary_uses_records_and_isolates_academic_years(): void
     {
         $academicYear = AcademicYear::active()->firstOrFail();

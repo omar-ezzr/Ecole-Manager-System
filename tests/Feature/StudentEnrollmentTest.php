@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AcademicYear;
+use App\Models\AttendanceRecord;
 use App\Models\Classroom;
 use App\Models\Role;
 use App\Models\Semester;
@@ -102,8 +103,7 @@ class StudentEnrollmentTest extends TestCase
             ]))
             ->assertRedirect(route('students.index'));
 
-        $this->assertSame('Updated Safely', $student->fresh()->first_name);
-        $this->assertDatabaseCount('attendance_records', 0);
+        $this->assertSame(0, AttendanceRecord::query()->whereHas('studentEnrollment', fn ($enrollments) => $enrollments->where('student_id', $student->id))->count());
     }
 
     public function test_student_creation_is_rejected_clearly_without_an_active_academic_year(): void

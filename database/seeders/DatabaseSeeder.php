@@ -21,5 +21,7 @@ class DatabaseSeeder extends Seeder
         $this->call(MoroccanStudentSeeder::class);
         $this->call(DemoHealthRecordSeeder::class);
         $this->call(MoroccanDemoUserSeeder::class);
+        $this->call(MoroccanAcademicRecordSeeder::class);
+        $this->call(MoroccanAttendanceSeeder::class);
     }
 }

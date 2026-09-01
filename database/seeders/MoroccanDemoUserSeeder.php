@@ -74,21 +74,46 @@ class MoroccanDemoUserSeeder extends Seeder
             ->whereIn('name', ['TC-1', 'TC-2', '1BAC-SC-1', '1BAC-SC-2', '2BAC-PC-1', '2BAC-SVT-1'])
             ->pluck('id', 'name');
         $subjects = Subject::query()
-            ->whereIn('code', ['MAT', 'FRA', 'ENG', 'PHY', 'INF'])
+            ->whereIn('code', ['MAT', 'FRA', 'ENG', 'PHY', 'INF', 'SVT'])
             ->pluck('id', 'code');
 
-        if ($users->count() !== 3 || $classrooms->count() !== 6 || $subjects->count() !== 5) {
+        if ($users->count() !== 3 || $classrooms->count() !== 6 || $subjects->count() !== 6) {
             throw new RuntimeException('Moroccan demo teaching assignments require the demo users, classrooms, and subjects.');
         }
 
-        foreach ([
-            ['professeur1@ecole.local', 'TC-1', 'MAT'],
-            ['professeur1@ecole.local', 'TC-2', 'MAT'],
-            ['professeur2@ecole.local', '1BAC-SC-1', 'FRA'],
-            ['professeur2@ecole.local', '1BAC-SC-2', 'ENG'],
-            ['professeur3@ecole.local', '2BAC-PC-1', 'PHY'],
-            ['professeur3@ecole.local', '2BAC-SVT-1', 'INF'],
-        ] as [$email, $classroomName, $subjectCode]) {
+        $assignments = [
+            ['professeur1@ecole.local', 'TC-1', 'MAT'], ['professeur1@ecole.local', 'TC-2', 'MAT'],
+            ['professeur1@ecole.local', '1BAC-SC-1', 'MAT'], ['professeur1@ecole.local', '1BAC-SC-2', 'MAT'],
+            ['professeur1@ecole.local', '2BAC-PC-1', 'MAT'], ['professeur1@ecole.local', '2BAC-SVT-1', 'MAT'],
+            ['professeur2@ecole.local', 'TC-1', 'FRA'], ['professeur2@ecole.local', 'TC-2', 'ENG'],
+            ['professeur2@ecole.local', '1BAC-SC-1', 'FRA'], ['professeur2@ecole.local', '1BAC-SC-2', 'ENG'],
+            ['professeur2@ecole.local', '2BAC-PC-1', 'ENG'], ['professeur2@ecole.local', '2BAC-SVT-1', 'FRA'],
+            ['professeur3@ecole.local', 'TC-1', 'INF'], ['professeur3@ecole.local', 'TC-2', 'INF'],
+            ['professeur3@ecole.local', '1BAC-SC-1', 'PHY'], ['professeur3@ecole.local', '1BAC-SC-2', 'PHY'],
+            ['professeur3@ecole.local', '2BAC-PC-1', 'PHY'], ['professeur3@ecole.local', '2BAC-SVT-1', 'SVT'],
+        ];
+
+        $validAssignments = collect($assignments)->map(fn (array $assignment) => implode(':', [
+            $users[$assignment[0]], $classrooms[$assignment[1]], $subjects[$assignment[2]],
+        ]))->all();
+
+        TeachingAssignment::query()->where('academic_year_id', $academicYear->id)
+            ->whereIn('professor_id', $users->values())->whereIn('classroom_id', $classrooms->values())->get()
+            ->reject(fn (TeachingAssignment $assignment) => in_array(
+                implode(':', [$assignment->professor_id, $assignment->classroom_id, $assignment->subject_id]), $validAssignments, true
+            ))->each->delete();
+
+        $validClassroomSubjects = collect($assignments)->map(fn (array $assignment) => implode(':', [
+            $classrooms[$assignment[1]], $subjects[$assignment[2]],
+        ]))->all();
+
+        ClassroomSubject::query()->where('academic_year_id', $academicYear->id)
+            ->whereIn('classroom_id', $classrooms->values())->get()
+            ->reject(fn (ClassroomSubject $assignment) => in_array(
+                implode(':', [$assignment->classroom_id, $assignment->subject_id]), $validClassroomSubjects, true
+            ))->each->delete();
+
+        foreach ($assignments as [$email, $classroomName, $subjectCode]) {
             $classroomId = $classrooms[$classroomName];
             $subjectId = $subjects[$subjectCode];
 

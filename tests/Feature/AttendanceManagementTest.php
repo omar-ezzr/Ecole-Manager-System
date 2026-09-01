@@ -19,6 +19,13 @@ class AttendanceManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        AttendanceRecord::query()->delete();
+    }
     public function test_attendance_schema_has_enrollment_foreign_key_and_daily_unique_index(): void
     {
         $this->assertTrue(Schema::hasTable('attendance_records'));

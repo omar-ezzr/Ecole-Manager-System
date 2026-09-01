@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\AcademicYear;
+use App\Models\AttendanceRecord;
+use App\Models\ClassroomSubject;
 use App\Models\Role;
 use App\Models\Semester;
 use App\Models\Student;
@@ -115,16 +117,46 @@ class MoroccanDemoSeederTest extends TestCase
         $professors = User::query()
             ->whereIn('email', ['professeur1@ecole.local', 'professeur2@ecole.local', 'professeur3@ecole.local'])
             ->get();
-        $this->assertSame(6, TeachingAssignment::query()
+        $this->assertSame(18, TeachingAssignment::query()
             ->where('academic_year_id', $academicYear->id)
             ->whereIn('professor_id', $professors->modelKeys())
             ->count());
-        foreach ($professors as $professor) {
-            $this->assertSame(2, TeachingAssignment::query()
+        $this->assertSame(18, ClassroomSubject::query()
+            ->where('academic_year_id', $academicYear->id)
+            ->count());
+        foreach ($students->pluck('classroom_id')->unique() as $classroomId) {
+            $this->assertSame(3, TeachingAssignment::query()
                 ->where('academic_year_id', $academicYear->id)
-                ->where('professor_id', $professor->id)
+                ->where('classroom_id', $classroomId)
+                ->count());
+            $this->assertSame(3, ClassroomSubject::query()
+                ->where('academic_year_id', $academicYear->id)
+                ->where('classroom_id', $classroomId)
                 ->count());
         }
+
+        $this->assertSame(600, StudentGrade::query()
+            ->whereIn('student_id', $students->modelKeys())
+            ->whereNotNull('teaching_assignment_id')
+            ->count());
+        $this->assertSame(1000, AttendanceRecord::query()
+            ->whereHas('studentEnrollment', fn ($enrollments) => $enrollments
+                ->where('academic_year_id', $academicYear->id)
+                ->whereIn('student_id', $students->modelKeys()))
+            ->count());
+        $this->assertSame(0, AttendanceRecord::query()
+            ->selectRaw('student_enrollment_id, date, count(*) as record_count')
+            ->groupBy('student_enrollment_id', 'date')
+            ->having('record_count', '>', 1)
+            ->count());
+        $this->assertSame(6, AttendanceRecord::classroomStatusCounts(
+            AttendanceRecord::query()->forAcademicYear($academicYear),
+            AttendanceRecord::STATUS_ABSENT
+        )->count());
+        $this->assertSame(100, Student::query()->whereHas('grades', fn ($grades) => $grades
+            ->whereNotNull('teaching_assignment_id')
+            ->forAcademicYear($academicYear))
+            ->count());
 
         $admin->refresh();
 
