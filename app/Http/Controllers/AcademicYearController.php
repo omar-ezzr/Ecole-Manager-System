@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\AcademicYear;
 use App\Models\Classroom;
 use App\Models\Semester;
-use App\Support\SchoolPermissions as P;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -21,13 +20,14 @@ class AcademicYearController extends Controller
 
         $query = AcademicYear::query()->orderByDesc('starts_at');
 
-        if ($request->user()->can(P::TEACHING_ASSIGNMENTS_VIEW_OWN)
-            && ! $request->user()->can(P::TEACHING_ASSIGNMENTS_VIEW_ALL)) {
+        $user = $request->user();
+
+        if ($user->isProfessor()) {
             $query->whereHas('teachingAssignments', fn ($assignments) => $assignments
-                ->where('professor_id', $request->user()->id));
-        } elseif ($request->user()->can(P::GRADES_OWN)) {
+                ->where('professor_id', $user->id));
+        } elseif ($user->isStudentUser()) {
             $query->whereHas('semesters.grades', fn ($grades) => $grades
-                ->where('student_id', $request->user()->student_id ?? 0));
+                ->where('student_id', $user->student_id ?? 0));
         }
 
         $academicYears = $query->paginate(20);

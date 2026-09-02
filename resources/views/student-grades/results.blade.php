@@ -3,7 +3,22 @@
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
                 <flux:heading size="xl">{{ auth()->user()->isStudentUser() ? 'My Results' : 'Student Results' }}</flux:heading>
-                <flux:text class="mt-1">{{ $student->last_name }} {{ $student->first_name }} | {{ $student->student_number }}</flux:text>
+                @can('view', $student)
+                    <flux:link
+                        :href="route('students.show', $student)"
+                        class="mt-1 inline-flex items-center font-medium"
+                    >
+                        {{ $student->last_name }} {{ $student->first_name }}
+
+                        <span class="ml-1 font-normal text-zinc-500 dark:text-zinc-400">
+                            | {{ $student->student_number }}
+                        </span>
+                    </flux:link>
+                @else
+                    <flux:text class="mt-1">
+                        {{ $student->last_name }} {{ $student->first_name }} | {{ $student->student_number }}
+                    </flux:text>
+                @endcan
                 @if($historicalClassroom)
                     <flux:text class="mt-1">{{ $selectedYear?->name }} classroom: {{ $historicalClassroom->name }}</flux:text>
                 @endif

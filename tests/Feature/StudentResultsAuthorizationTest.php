@@ -25,7 +25,9 @@ class StudentResultsAuthorizationTest extends TestCase
         $user->assignRole(Role::ROLE_STUDENT);
         $otherStudent = Student::factory()->create(['classroom_id' => $student->classroom_id]);
 
-        $this->actingAs($user)->get(route('student-grades.results', $student))->assertOk();
+        $this->actingAs($user)->get(route('student-grades.results', $student))
+            ->assertOk()
+            ->assertSee(route('students.show', $student), false);
         $this->actingAs($user)->get(route('student-grades.report-card', [$student, $semester]))->assertOk();
         $this->actingAs($user)->get(route('student-grades.results', $otherStudent))->assertForbidden();
         $this->actingAs($user)->get(route('student-grades.report-card', [$otherStudent, $semester]))->assertForbidden();
@@ -37,7 +39,9 @@ class StudentResultsAuthorizationTest extends TestCase
         $director = User::factory()->create();
         $director->assignRole(Role::ROLE_DIRECTOR);
 
-        $this->actingAs($director)->get(route('student-grades.results', $student))->assertOk();
+        $this->actingAs($director)->get(route('student-grades.results', $student))
+            ->assertOk()
+            ->assertSee(route('students.show', $student), false);
         $this->actingAs($director)->get(route('student-grades.report-card', [$student, $semester]))->assertOk();
     }
 

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\AcademicYear;
 use App\Models\Semester;
-use App\Support\SchoolPermissions as P;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -20,14 +19,15 @@ class SemesterController extends Controller
         $query = Semester::with('academicYear')->orderBy('academic_year_id')->orderBy('sequence');
         $academicYearsQuery = AcademicYear::query()->orderByDesc('starts_at');
 
-        if ($request->user()->can(P::TEACHING_ASSIGNMENTS_VIEW_OWN)
-            && ! $request->user()->can(P::TEACHING_ASSIGNMENTS_VIEW_ALL)) {
+        $user = $request->user();
+
+        if ($user->isProfessor()) {
             $scopeAssignments = fn ($assignments) => $assignments
-                ->where('professor_id', $request->user()->id);
+                ->where('professor_id', $user->id);
             $query->whereHas('academicYear.teachingAssignments', $scopeAssignments);
             $academicYearsQuery->whereHas('teachingAssignments', $scopeAssignments);
-        } elseif ($request->user()->can(P::GRADES_OWN)) {
-            $studentId = $request->user()->student_id ?? 0;
+        } elseif ($user->isStudentUser()) {
+            $studentId = $user->student_id ?? 0;
             $query->whereHas('grades', fn ($grades) => $grades->where('student_id', $studentId));
             $academicYearsQuery->whereHas('semesters.grades', fn ($grades) => $grades->where('student_id', $studentId));
         }
